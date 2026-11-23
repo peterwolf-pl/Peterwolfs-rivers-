@@ -1,0 +1,14 @@
+{
+  "item.peterwolfs_rivers.wressla": "Katamaran Rzeczny Wressla",
+  "entity.peterwolfs_rivers.wressla": "Katamaran Rzeczny Wressla",
+  "item.peterwolfs_rivers.river_water_bucket": "Wiadro Wody Rzecznej",
+  "block.peterwolfs_rivers.river_water_block": "Woda Rzeczna",
+  "biome.peterwolfs_rivers.river": "Rzeka Peterwolfa",
+  "itemGroup.peterwolfs_rivers.main": "Peterwolf's Rivers",
+  "key.peterwolfs_rivers.engine": "Włącz/Wyłącz Silnik Zaburtowy",
+  "message.peterwolfs_rivers.engine_on": "Silnik zaburtowy uruchomiony",
+  "message.peterwolfs_rivers.engine_off": "Silnik zaburtowy zatrzymany",
+  "message.peterwolfs_rivers.helm_claimed": "Przejęto ster Wressli. Użyj W/S do regulacji obrotów, A/D do skrętu. Shift aby puścić ster.",
+  "command.peterwolfs_rivers.info": "Symulacja Hydrodynamiki Peterwolf's Rivers",
+  "command.peterwolfs_rivers.lock_cycled": "Zainicjowano cykl śluzy żeglugowej."
+}

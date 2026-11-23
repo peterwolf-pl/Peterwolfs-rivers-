@@ -1,0 +1,14 @@
+{
+  "item.peterwolfs_rivers.wressla": "Wressla River Catamaran",
+  "entity.peterwolfs_rivers.wressla": "Wressla River Catamaran",
+  "item.peterwolfs_rivers.river_water_bucket": "River Water Bucket",
+  "block.peterwolfs_rivers.river_water_block": "River Water",
+  "biome.peterwolfs_rivers.river": "Peterwolf's River",
+  "itemGroup.peterwolfs_rivers.main": "Peterwolf's Rivers",
+  "key.peterwolfs_rivers.engine": "Toggle Outboard Motor",
+  "message.peterwolfs_rivers.engine_on": "Outboard motor started",
+  "message.peterwolfs_rivers.engine_off": "Outboard motor stopped",
+  "message.peterwolfs_rivers.helm_claimed": "Steering Wressla. Use W/S for throttle, A/D to steer. Shift to dismount.",
+  "command.peterwolfs_rivers.info": "Peterwolf's Rivers Hydrodynamics Simulation",
+  "command.peterwolfs_rivers.lock_cycled": "Navigation lock cycle initiated."
+}

@@ -1,0 +1,103 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	mavenCentral()
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"peterwolfs_rivers" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+sourceSets.test.compileClasspath += sourceSets.client.output + sourceSets.client.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.client.output + sourceSets.client.runtimeClasspath
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// Wind & Sails dependency
+	def windSailsCandidates = [
+		file('../wind_n_sails/pw_wind_n_sails/build/libs'),
+		file('../pw_wind_n_sails/build/libs')
+	]
+	def windSailsDir = windSailsCandidates.find { it.isDirectory() }
+	def windSailsClasses = file('../pw_wind_n_sails/build/classes/java/main')
+	def windSailsClientClasses = file('../pw_wind_n_sails/build/classes/java/client')
+	if (windSailsDir != null && windSailsDir.exists()) {
+		def jars = fileTree(dir: windSailsDir, include: ['pw_wind_n_sails*.jar'], exclude: ['*-sources.jar'])
+		compileOnly jars
+		clientCompileOnly jars
+		localRuntime jars
+		testImplementation jars
+	}
+	if (windSailsClasses.exists()) {
+		compileOnly files(windSailsClasses)
+		clientCompileOnly files(windSailsClasses)
+		testImplementation files(windSailsClasses)
+		testRuntimeOnly files(windSailsClasses)
+	}
+	if (windSailsClientClasses.exists()) {
+		clientCompileOnly files(windSailsClientClasses)
+		testImplementation files(windSailsClientClasses)
+		testRuntimeOnly files(windSailsClientClasses)
+	}
+
+	testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+	useJUnitPlatform()
+	systemProperty 'java.awt.headless', 'true'
+}
+
+tasks.register('exportModel', JavaExec) {
+	group = 'verification'
+	description = 'Export and verify the baked Wressla model.'
+	dependsOn testClasses
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = 'com.piotrek.pwrivers.vessel.ExportWresslaModel'
+	systemProperty 'java.awt.headless', 'true'
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+}
+
+java {
+	withSourcesJar()
+
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}

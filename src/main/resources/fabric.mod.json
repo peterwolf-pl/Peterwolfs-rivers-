@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "peterwolfs_rivers",
+  "version": "${version}",
+  "name": "Peterwolf's Rivers",
+  "description": "Realistic hydrodynamics, inland river navigation simulation, working locks, weirs, vortices, and Wind & Sails integration for Minecraft 26.3.",
+  "authors": [
+    "Piotrek"
+  ],
+  "license": "CC0-1.0",
+  "environment": "*",
+  "icon": "assets/peterwolfs_rivers/icon.png",
+  "entrypoints": {
+    "main": [
+      "com.piotrek.pwrivers.PeterwolfsRiversMod"
+    ],
+    "client": [
+      "com.piotrek.pwrivers.client.PeterwolfsRiversClient"
+    ]
+  },
+  "mixins": [
+    "peterwolfs_rivers.client.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "pw_wind_n_sails": "*"
+  }
+}
