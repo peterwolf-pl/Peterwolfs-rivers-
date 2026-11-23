@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "I I",
+    "PCP",
+    "IRI"
+  ],
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "P": "#minecraft:planks",
+    "C": "minecraft:compass",
+    "R": "minecraft:redstone"
+  },
+  "result": {
+    "id": "peterwolfs_rivers:wressla",
+    "count": 1
+  }
+}

@@ -320,5 +320,16 @@ public final class RiverDemoPreset {
 			level.setBlockAndUpdate(new BlockPos(x, oy - 4, oz + 100), stoneBricks);
 			level.setBlockAndUpdate(new BlockPos(x, oy - 5, oz + 100), stoneBricks);
 		}
+
+		// Spawn Wressla River Catamaran ready to board and sail
+		com.piotrek.pwrivers.vessel.WresslaEntity wressla = com.piotrek.pwrivers.PeterwolfsRiversMod.WRESSLA_ENTITY.create(
+			level,
+			net.minecraft.world.entity.EntitySpawnReason.COMMAND
+		);
+		if (wressla != null) {
+			wressla.setPos(ox, oy + 0.60, oz - 20);
+			wressla.setYRot(180.0F); // Pointing downstream towards Wrocław
+			level.addFreshEntity(wressla);
+		}
 	}
 }

@@ -239,11 +239,52 @@ public final class RiversCommands {
 					ctx.getSource().sendSuccess(
 						() -> Component.literal(String.format(
 							"§aSuccessfully built Odra River demonstration environment at [%d, %d, %d]!\n" +
-							"§7Includes: Upstream gorge/rapids, Island bifurcation, Śluza Piaskowa, Śluza Mieszczańska, Jaz św. Macieja, and bridge pier wake eddies.",
+							"§7Includes: Upstream gorge/rapids, Island bifurcation, Śluza Piaskowa, Śluza Mieszczańska, Jaz św. Macieja, bridge pier wake eddies, and Wressla Catamaran ready to board.",
 							origin.getX(), origin.getY(), origin.getZ()
 						)),
 						true
 					);
+					return 1;
+				})
+			)
+			// /rivers vessel | wressla
+			.then(Commands.literal("vessel")
+				.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+				.executes(ctx -> {
+					ServerPlayer player = ctx.getSource().getPlayer();
+					if (player == null) return 0;
+					ServerLevel level = ctx.getSource().getLevel();
+					Vec3 pos = player.position();
+					com.piotrek.pwrivers.vessel.WresslaEntity wressla = com.piotrek.pwrivers.PeterwolfsRiversMod.WRESSLA_ENTITY.create(
+						level,
+						net.minecraft.world.entity.EntitySpawnReason.COMMAND
+					);
+					if (wressla != null) {
+						wressla.setPos(pos.x, pos.y + 0.35, pos.z);
+						wressla.setYRot(player.getYRot());
+						level.addFreshEntity(wressla);
+						ctx.getSource().sendSuccess(() -> Component.literal("§aZbudowano i zwodowano Katamaran Rzeczny Wressla!"), true);
+					}
+					return 1;
+				})
+			)
+			.then(Commands.literal("wressla")
+				.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+				.executes(ctx -> {
+					ServerPlayer player = ctx.getSource().getPlayer();
+					if (player == null) return 0;
+					ServerLevel level = ctx.getSource().getLevel();
+					Vec3 pos = player.position();
+					com.piotrek.pwrivers.vessel.WresslaEntity wressla = com.piotrek.pwrivers.PeterwolfsRiversMod.WRESSLA_ENTITY.create(
+						level,
+						net.minecraft.world.entity.EntitySpawnReason.COMMAND
+					);
+					if (wressla != null) {
+						wressla.setPos(pos.x, pos.y + 0.35, pos.z);
+						wressla.setYRot(player.getYRot());
+						level.addFreshEntity(wressla);
+						ctx.getSource().sendSuccess(() -> Component.literal("§aZbudowano i zwodowano Katamaran Rzeczny Wressla!"), true);
+					}
 					return 1;
 				})
 			);
