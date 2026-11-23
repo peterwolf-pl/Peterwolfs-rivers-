@@ -14,6 +14,9 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLevelEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
+import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.Registry;
@@ -22,6 +25,8 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.item.CreativeModeTab;
@@ -81,7 +86,6 @@ public class PeterwolfsRiversMod implements ModInitializer {
 			.displayItems((params, output) -> {
 				output.accept(WRESSLA_ITEM);
 				output.accept(RiverFluidRegistry.RIVER_WATER_BUCKET);
-				output.accept(RiverFluidRegistry.RIVER_WATER_BLOCK);
 			})
 			.build()
 	);
@@ -108,23 +112,39 @@ public class PeterwolfsRiversMod implements ModInitializer {
 		ServerPlayNetworking.registerGlobalReceiver(WresslaInputPayload.TYPE, (payload, context) -> {
 			context.server().execute(() -> {
 				var player = context.player();
-				if (player.level().getEntity(payload.entityId()) instanceof WresslaEntity wressla) {
-					if (wressla.isHelmsman(player)) {
-						wressla.clientRudderInput = payload.rudderInput();
-						wressla.clientThrottleInput = payload.throttleInput();
-						if (payload.toggleEngine()) {
-							wressla.toggleEngine(player);
-						}
-						if (payload.dismountHelm()) {
-							wressla.setHelmsman(null);
-							player.stopRiding();
-						}
+				if (player.getVehicle() instanceof WresslaEntity wressla) {
+					wressla.setControlInput(payload.rudderInput(), payload.throttleInput());
+					if (payload.toggleEngine()) {
+						wressla.toggleEngine(player);
+					}
+					if (payload.dismountHelm()) {
+						wressla.releaseHelm(player);
 					}
 				}
 			});
 		});
 
-		// 6. Server Lifecycle & World Physics Ticks
+		// 6. Helmsman & Wheel Click Interaction Callbacks
+		UseItemCallback.EVENT.register((player, level, hand) -> {
+			if (hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
+			if (WresslaEntity.handleAimedControl(player)) return InteractionResult.SUCCESS;
+			return InteractionResult.PASS;
+		});
+
+		UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
+			if (hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
+			if (WresslaEntity.handleAimedControl(player)) return InteractionResult.SUCCESS;
+			return InteractionResult.PASS;
+		});
+
+		UseEntityCallback.EVENT.register((player, level, hand, entity, hitResult) -> {
+			if (hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
+			if (entity instanceof WresslaEntity) return InteractionResult.PASS;
+			if (WresslaEntity.handleAimedControl(player)) return InteractionResult.SUCCESS;
+			return InteractionResult.PASS;
+		});
+
+		// 7. Server Lifecycle & World Physics Ticks
 		ServerTickEvents.END_LEVEL_TICK.register(level -> {
 			RiverPhysicsEngine.getInstance().tickServer(level);
 			RiverEntityPhysics.tickLevel(level);

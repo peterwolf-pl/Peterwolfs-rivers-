@@ -1,17 +1,26 @@
 package com.piotrek.pwrivers.physics;
 
 import com.piotrek.pwrivers.config.RiversConfig;
+import com.piotrek.pwrivers.fluid.RiverWaterFluid;
 import com.piotrek.pwrivers.integration.WindAndSailsRiverAdapter;
 import com.piotrek.pwrivers.network.RiverNetworkGraph;
 import com.piotrek.pwrivers.network.RiverReach;
+import com.piotrek.pwrivers.worldgen.RiverBiomeRegistry;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.tags.BiomeTags;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.Vec3;
 
 /**
  * Localized 2D/3D depth-averaged velocity field solver.
  * Calculates detailed velocity vectors, shear profiles, secondary circulation,
  * turbulence, and vorticity at any point in the river.
+ * Supports both macro-network reach projections and continuous procedural river flow.
  */
 public class RiverFlowField {
 	private final RiverNetworkGraph network;
@@ -38,7 +47,7 @@ public class RiverFlowField {
 
 		RiverReach reach = this.network.findNearestReach(position);
 		if (reach == null) {
-			return RiverFlowSample.ZERO;
+			return sampleProceduralFlow(level, position);
 		}
 
 		RiverReach.ProjectionResult proj = reach.project(position);
@@ -72,7 +81,6 @@ public class RiverFlowField {
 
 		// 3. Sharp bend asymmetry: outer bank accelerates, inner bank slows
 		if (Math.abs(proj.curvature()) > 1e-4) {
-			// If curvature > 0 (curving right), outer bank is negative offset (left bank)
 			double bendSkew = -proj.curvature() * proj.transverseDistance() * 1.2;
 			vStreamwise *= Math.max(0.2, 1.0 + bendSkew);
 		}
@@ -143,5 +151,176 @@ public class RiverFlowField {
 			pressure,
 			reach.getReachId()
 		);
+	}
+
+	/**
+	 * Procedural continuous river flow solver for naturally generated worlds.
+	 * Evaluates an incompressible analytical stream function Psi(x, z), aligns with local channel
+	 * geometry, and applies Manning resistance, depth scaling, and vertical velocity profiles.
+	 */
+	public RiverFlowSample sampleProceduralFlow(Level level, Vec3 position) {
+		if (position == null) return RiverFlowSample.ZERO;
+
+		double surfaceY = 62.0;
+		double depth = 3.5;
+
+		if (level != null) {
+			BlockPos blockPos = BlockPos.containing(position.x, position.y, position.z);
+			FluidState fluid = level.getFluidState(blockPos);
+			boolean inWater = fluid.getType() instanceof RiverWaterFluid || fluid.is(FluidTags.WATER);
+
+			if (!inWater) {
+				BlockPos below = blockPos.below();
+				FluidState fluidBelow = level.getFluidState(below);
+				if (fluidBelow.getType() instanceof RiverWaterFluid || fluidBelow.is(FluidTags.WATER)) {
+					inWater = true;
+					blockPos = below;
+					fluid = fluidBelow;
+				}
+			}
+
+			if (!inWater) {
+				return RiverFlowSample.ZERO;
+			}
+
+			Holder<Biome> biomeHolder = level.getBiome(blockPos);
+			boolean isRiverBiome = biomeHolder.is(RiverBiomeRegistry.RIVERS_BY_PETERWOLF)
+				|| biomeHolder.is(RiverBiomeRegistry.RIVER_BIOME)
+				|| biomeHolder.is(BiomeTags.IS_RIVER);
+			boolean isCustomRiverFluid = fluid.getType() instanceof RiverWaterFluid;
+
+			// Only simulate strong river currents in river biomes or custom river fluid
+			if (!isRiverBiome && !isCustomRiverFluid) {
+				return RiverFlowSample.ZERO;
+			}
+
+			// Scan upward to locate water surface
+			BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(blockPos.getX(), blockPos.getY(), blockPos.getZ());
+			while (cursor.getY() < level.getMaxY() && (level.getFluidState(cursor).is(FluidTags.WATER) || level.getFluidState(cursor).getType() instanceof RiverWaterFluid)) {
+				cursor.move(0, 1, 0);
+			}
+			surfaceY = cursor.getY() - 0.05;
+
+			// Scan downward to locate riverbed
+			cursor.set(blockPos.getX(), blockPos.getY(), blockPos.getZ());
+			while (cursor.getY() > level.getMinY() && (level.getFluidState(cursor).is(FluidTags.WATER) || level.getFluidState(cursor).getType() instanceof RiverWaterFluid)) {
+				cursor.move(0, -1, 0);
+			}
+			double bedY = cursor.getY() + 1.0;
+			depth = Math.max(0.5, surfaceY - bedY);
+		}
+
+		// Analytical incompressible stream function: div(v) = 0
+		double sx = position.x * 0.004;
+		double sz = position.z * 0.004;
+
+		double dPsi_dx = Math.cos(sx + 0.6 * Math.sin(sz))
+			+ 0.5 * Math.cos(2.3 * sx + 0.9) * Math.sin(1.7 * sz)
+			+ 0.25 * Math.cos(4.1 * sx + 1.5);
+
+		double dPsi_dz = -Math.sin(sz + 0.5 * Math.cos(sx))
+			+ 0.5 * Math.sin(2.3 * sx + 0.9) * Math.cos(1.7 * sz)
+			- 0.25 * Math.sin(3.8 * sz + 0.7);
+
+		double vx = -dPsi_dz;
+		double vz = dPsi_dx;
+
+		// Channel bank alignment
+		if (level != null) {
+			BlockPos center = BlockPos.containing(position.x, position.y, position.z);
+			int r = 3;
+			boolean solidEast = !level.getFluidState(center.offset(r, 0, 0)).is(FluidTags.WATER);
+			boolean solidWest = !level.getFluidState(center.offset(-r, 0, 0)).is(FluidTags.WATER);
+			boolean solidSouth = !level.getFluidState(center.offset(0, 0, r)).is(FluidTags.WATER);
+			boolean solidNorth = !level.getFluidState(center.offset(0, 0, -r)).is(FluidTags.WATER);
+
+			if ((solidEast || solidWest) && !(solidNorth || solidSouth)) {
+				vx *= 0.25;
+				if (Math.abs(vz) < 0.1) vz = (vz >= 0) ? 1.0 : -1.0;
+			} else if ((solidNorth || solidSouth) && !(solidEast || solidWest)) {
+				vz *= 0.25;
+				if (Math.abs(vx) < 0.1) vx = (vx >= 0) ? 1.0 : -1.0;
+			}
+		}
+
+		double len = Math.sqrt(vx * vx + vz * vz);
+		if (len < 1e-4) {
+			vx = 0.0;
+			vz = 1.0;
+			len = 1.0;
+		}
+		double dirX = vx / len;
+		double dirZ = vz / len;
+
+		// Natural river current speed ~0.95 m/s (~0.048 blocks/tick)
+		double baseSpeed = 0.95 * RiversConfig.flowSpeedMultiplier;
+		double depthFactor = Mth.clamp(depth / 3.0, 0.45, 1.30);
+		double streamSpeed = baseSpeed * depthFactor;
+
+		if (level != null) {
+			double bankDist = estimateBankDistance(level, BlockPos.containing(position.x, position.y, position.z), 5);
+			if (bankDist < 3.0) {
+				double bankFriction = Math.max(0.25, bankDist / 3.0);
+				streamSpeed *= bankFriction;
+			}
+		}
+
+		double heightAboveBed = Math.max(0.0, position.y - (surfaceY - depth));
+		streamSpeed = RiverHydraulics.verticalVelocityProfile(heightAboveBed, depth, streamSpeed);
+
+		double finalVx = dirX * streamSpeed;
+		double finalVz = dirZ * streamSpeed;
+
+		// Vortices and Eddies
+		Vec3 vortexVel = this.vortexSolver.sampleVortexVelocity(position);
+		finalVx += vortexVel.x;
+		finalVz += vortexVel.z;
+
+		// Wind drift
+		if (level != null && RiversConfig.compatibilityEnableWindAndSails) {
+			double relDepth = (depth > 0.1) ? Mth.clamp(heightAboveBed / depth, 0.0, 1.0) : 0.5;
+			Vec3 windDrift = WindAndSailsRiverAdapter.computeSurfaceWindDrift(level, position, relDepth);
+			finalVx += windDrift.x;
+			finalVz += windDrift.z;
+		}
+
+		double horizSpeed = Math.sqrt(finalVx * finalVx + finalVz * finalVz);
+		float flowDeg = (float) (Mth.atan2(-finalVx, finalVz) * Mth.RAD_TO_DEG);
+		if (flowDeg < 0.0F) flowDeg += 360.0F;
+
+		float vortexVort = this.vortexSolver.sampleTotalVorticity(position);
+		float turbulence = RiverTurbulence.calculateTurbulence(
+			streamSpeed, depth, 0.032, 0.05F, Math.abs(vortexVort) > 0.1F, false
+		) * (float) RiversConfig.turbulenceMultiplier;
+
+		double depthBelowSurface = Math.max(0.0, surfaceY - position.y);
+		double pressure = RiverHydraulics.localPressure(depthBelowSurface, horizSpeed);
+
+		return new RiverFlowSample(
+			new Vec3(finalVx, 0.0, finalVz),
+			horizSpeed,
+			flowDeg,
+			depth,
+			surfaceY,
+			turbulence,
+			vortexVort,
+			pressure,
+			"procedural_reach"
+		);
+	}
+
+	private static double estimateBankDistance(Level level, BlockPos pos, int maxRadius) {
+		for (int r = 1; r <= maxRadius; r++) {
+			for (int dx = -r; dx <= r; dx += r) {
+				for (int dz = -r; dz <= r; dz += r) {
+					BlockPos p = pos.offset(dx, 0, dz);
+					FluidState fluid = level.getFluidState(p);
+					if (!fluid.is(FluidTags.WATER) && !(fluid.getType() instanceof RiverWaterFluid)) {
+						return Math.sqrt(dx * dx + dz * dz);
+					}
+				}
+			}
+		}
+		return maxRadius;
 	}
 }

@@ -9,14 +9,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.color.block.BlockTintSource;
 import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.resources.model.sprite.Material;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.Vec3;
 import net.fabricmc.fabric.api.client.render.fluid.v1.FluidRenderingRegistry;
 
@@ -62,8 +60,8 @@ public final class RiverClientEffects {
 		Vec3 playerPos = player.position();
 		int range = 24;
 
-		// 1. Whitewater and Foam particles near rapids and weirs
-		for (int i = 0; i < 16; i++) {
+		// 1. Surface flow drift streaks & foam particles
+		for (int i = 0; i < 20; i++) {
 			double rx = playerPos.x + (random.nextDouble() - 0.5) * range;
 			double rz = playerPos.z + (random.nextDouble() - 0.5) * range;
 			double ry = playerPos.y + (random.nextDouble() - 0.5) * 8.0;
@@ -71,25 +69,37 @@ public final class RiverClientEffects {
 			Vec3 samplePos = new Vec3(rx, ry, rz);
 			RiverFlowSample sample = RiverPhysicsEngine.getInstance().sampleFlow(level, samplePos);
 
-			if (sample.hasCurrent() && RiverTurbulence.isWhitewater(sample.turbulenceIntensity())) {
+			if (sample.hasCurrent()) {
 				double surfY = sample.waterSurfaceHeight();
-				if (Math.abs(samplePos.y - surfY) < 1.0) {
-					// Foam on surface
-					level.addParticle(
-						ParticleTypes.SPLASH,
-						rx, surfY + 0.05, rz,
-						(random.nextDouble() - 0.5) * 0.1,
-						0.08 + random.nextDouble() * 0.1,
-						(random.nextDouble() - 0.5) * 0.1
-					);
+				if (Math.abs(samplePos.y - surfY) < 1.2) {
+					Vec3 v = sample.velocity();
 
-					if (sample.turbulenceIntensity() > 0.70F) {
-						// Aeration / bubble cloud
+					// Surface drift splash/current trail
+					if (random.nextInt(3) == 0) {
 						level.addParticle(
-							ParticleTypes.BUBBLE_POP,
-							rx, surfY, rz,
-							0.0, 0.02, 0.0
+							ParticleTypes.SPLASH,
+							rx, surfY + 0.03, rz,
+							v.x * 0.15, 0.03, v.z * 0.15
 						);
+					}
+
+					// Whitewater and Foam in turbulent sections
+					if (RiverTurbulence.isWhitewater(sample.turbulenceIntensity())) {
+						level.addParticle(
+							ParticleTypes.SPLASH,
+							rx, surfY + 0.05, rz,
+							(random.nextDouble() - 0.5) * 0.1,
+							0.08 + random.nextDouble() * 0.1,
+							(random.nextDouble() - 0.5) * 0.1
+						);
+
+						if (sample.turbulenceIntensity() > 0.65F) {
+							level.addParticle(
+								ParticleTypes.BUBBLE_POP,
+								rx, surfY, rz,
+								v.x * 0.05, 0.02, v.z * 0.05
+							);
+						}
 					}
 				}
 			}

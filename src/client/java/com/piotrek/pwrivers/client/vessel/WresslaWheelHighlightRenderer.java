@@ -37,8 +37,8 @@ public final class WresslaWheelHighlightRenderer {
 		float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(true);
 		PoseStack poseStack = context.poseStack();
 
-		boolean isHelmsman = player.getVehicle() instanceof WresslaEntity wressla && wressla.isHelmsman(player);
-		if (!isHelmsman) {
+		boolean isRiding = player.getVehicle() instanceof WresslaEntity;
+		if (!isRiding) {
 			AABB searchBox = player.getBoundingBox().inflate(6.0);
 			List<WresslaEntity> boats = level.getEntitiesOfClass(WresslaEntity.class, searchBox);
 			for (WresslaEntity boat : boats) {
@@ -57,11 +57,9 @@ public final class WresslaWheelHighlightRenderer {
 	private static void drawLocalBox(PoseStack.Pose pose, VertexConsumer consumer, WresslaEntity boat, AABB box, float partialTick, Vec3 camPos) {
 		float boatYaw = Mth.rotLerp(partialTick, boat.yRotO, boat.getYRot());
 		Vec3 boatPos = boat.getPosition(partialTick);
-		float yawRad = boatYaw * Mth.DEG_TO_RAD;
-		double fwdX = -Mth.sin(yawRad);
-		double fwdZ = Mth.cos(yawRad);
-		double rightX = Mth.cos(yawRad);
-		double rightZ = Mth.sin(yawRad);
+		double radians = Math.toRadians(boatYaw);
+		double cos = Math.cos(radians);
+		double sin = Math.sin(radians);
 
 		Vec3[] localCorners = new Vec3[]{
 			new Vec3(box.minX, box.minY, box.minZ),
@@ -79,27 +77,54 @@ public final class WresslaWheelHighlightRenderer {
 		float[] rz = new float[8];
 
 		for (int k = 0; k < 8; k++) {
-			rx[k] = (float) (boatPos.x + rightX * localCorners[k].x + fwdX * localCorners[k].z - camPos.x);
-			ry[k] = (float) (boatPos.y + localCorners[k].y - camPos.y);
-			rz[k] = (float) (boatPos.z + rightZ * localCorners[k].x + fwdZ * localCorners[k].z - camPos.z);
+			double wx = boatPos.x + cos * localCorners[k].x + sin * localCorners[k].z;
+			double wy = boatPos.y + localCorners[k].y;
+			double wz = boatPos.z + sin * localCorners[k].x - cos * localCorners[k].z;
+			rx[k] = (float) (wx - camPos.x);
+			ry[k] = (float) (wy - camPos.y);
+			rz[k] = (float) (wz - camPos.z);
 		}
 
 		drawBoxLines(pose, consumer, rx, ry, rz);
 	}
 
-	private static void drawBoxLines(PoseStack.Pose pose, VertexConsumer consumer, float[] x, float[] y, float[] z) {
+	private static void drawBoxLines(PoseStack.Pose pose, VertexConsumer consumer, float[] rx, float[] ry, float[] rz) {
 		int[][] edges = {
 			{0, 1}, {1, 2}, {2, 3}, {3, 0},
 			{4, 5}, {5, 6}, {6, 7}, {7, 4},
 			{0, 4}, {1, 5}, {2, 6}, {3, 7}
 		};
 		for (int[] e : edges) {
-			consumer.addVertex(pose, x[e[0]], y[e[0]], z[e[0]])
-				.setColor(0, 0, 0, 240)
-				.setNormal(pose, 0.0F, 1.0F, 0.0F);
-			consumer.addVertex(pose, x[e[1]], y[e[1]], z[e[1]])
-				.setColor(0, 0, 0, 240)
-				.setNormal(pose, 0.0F, 1.0F, 0.0F);
+			drawLine(pose, consumer, rx[e[0]], ry[e[0]], rz[e[0]], rx[e[1]], ry[e[1]], rz[e[1]], 240);
 		}
+	}
+
+	private static void drawLine(PoseStack.Pose pose, VertexConsumer consumer,
+								 float x1, float y1, float z1,
+								 float x2, float y2, float z2, int light) {
+		float dx = x2 - x1;
+		float dy = y2 - y1;
+		float dz = z2 - z1;
+		float len = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+		float nx = 0.0F;
+		float ny = 1.0F;
+		float nz = 0.0F;
+		if (len > 1.0E-4F) {
+			nx = dx / len;
+			ny = dy / len;
+			nz = dz / len;
+		}
+
+		consumer.addVertex(pose, x1, y1, z1)
+			.setColor(255, 230, 80, 255)
+			.setNormal(pose, nx, ny, nz)
+			.setLight(light)
+			.setLineWidth(2.5F);
+
+		consumer.addVertex(pose, x2, y2, z2)
+			.setColor(255, 230, 80, 255)
+			.setNormal(pose, nx, ny, nz)
+			.setLight(light)
+			.setLineWidth(2.5F);
 	}
 }

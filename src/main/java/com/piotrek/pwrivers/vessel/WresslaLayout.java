@@ -6,22 +6,22 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Geometric and spatial layout for Wressla - Historic Wrocław Tram River Catamaran.
  * Proportions:
- *  - 10.0m Length overall (160 px)
- *  - 3.5m Beam (56 px)
- *  - 0.60m Upright draft
- *  - 0.50m Deck height above waterline
- *  - Twin modular segmented pontoons with central tunnel
- *  - Outboard engine mounted on stern transom bracket (Z = +5.0m)
- *  - Helm console and steering wheel located at Z = -0.60m
+ *  - 10.0m Length overall
+ *  - 3.5m Beam
+ *  - 0.50m Teak deck height above waterline
+ *  - Coordinates:
+ *      * local.x: port (-) / starboard (+)
+ *      * local.y: height above waterline
+ *      * local.z: bow / forward (-) / stern / aft (+)
  */
 public final class WresslaLayout {
 	private WresslaLayout() {}
 
 	public static final double LENGTH = 10.0;
 	public static final double BEAM = 3.5;
-	public static final double HALF_BEAM = BEAM / 2.0; // 1.75m
-	public static final double HALF_LENGTH = LENGTH / 2.0; // 5.0m
-	public static final double DECK_Y = 0.50; // Metres above waterline
+	public static final double HALF_BEAM = BEAM / 2.0;
+	public static final double HALF_LENGTH = LENGTH / 2.0;
+	public static final double DECK_Y = 0.50;
 	public static final double DRAFT = 0.60;
 
 	// Twin floats
@@ -35,13 +35,13 @@ public final class WresslaLayout {
 	public static final double DECK_MIN_Z = -4.80;
 	public static final double DECK_MAX_Z = 4.80;
 
-	// Steering wheel bounding box in local vehicle coordinates (Z- forward, Z+ aft)
-	public static final AABB WHEEL_BOX = new AABB(-0.35, 1.15, -0.85, 0.35, 1.95, -0.35);
+	// Steering wheel & helm console bounding box (local.z: -1.10 to 0.20)
+	public static final AABB WHEEL_BOX = new AABB(-0.65, 0.60, -1.10, 0.65, 2.30, 0.20);
 
-	// Helmsman standing position behind steering console
-	public static final Vec3 HELMSMAN_POS = new Vec3(0.0, DECK_Y, -0.15);
+	// Helmsman standing position behind steering console (feet on teak deck, hips at Y=1.10)
+	public static final Vec3 HELMSMAN_POS = new Vec3(0.0, DECK_Y + 0.60, -0.15);
 
-	// Outboard motor mount and propeller positions
+	// Outboard motor mount and propeller positions (stern = positive Z)
 	public static final Vec3 MOTOR_MOUNT_POS = new Vec3(0.0, 0.20, 5.00);
 	public static final Vec3 PROPELLER_LOCAL_POS = new Vec3(0.0, -0.45, 4.85);
 

@@ -1,5 +1,7 @@
 package com.piotrek.pwrivers.fluid;
 
+import com.piotrek.pwrivers.physics.RiverFlowSample;
+import com.piotrek.pwrivers.physics.RiverPhysicsEngine;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleOptions;
@@ -20,12 +22,14 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.material.FlowingFluid;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;
 
 /**
  * Custom fluid implementation for Peterwolf's Rivers: river_water.
  * Decoupled from vanilla fluid spreading to preserve hydraulic mass conservation.
+ * Hydrodynamic flow vector is sampled directly from RiverPhysicsEngine.
  */
 public abstract class RiverWaterFluid extends FlowingFluid {
 	@Override
@@ -44,18 +48,26 @@ public abstract class RiverWaterFluid extends FlowingFluid {
 	}
 
 	@Override
+	public Vec3 getFlow(BlockGetter level, BlockPos pos, FluidState state) {
+		Level l = level instanceof Level lvl ? lvl : null;
+		RiverFlowSample sample = RiverPhysicsEngine.getInstance().sampleFlow(l, Vec3.atCenterOf(pos));
+		if (sample.hasCurrent()) {
+			return sample.velocity();
+		}
+		return super.getFlow(level, pos, state);
+	}
+
+	@Override
 	public void animateTick(Level level, BlockPos pos, FluidState state, RandomSource random) {
-		if (!state.isSource() && !state.getValue(FALLING)) {
-			if (random.nextInt(64) == 0) {
-				level.playLocalSound(
-					pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
-					SoundEvents.WATER_AMBIENT,
-					net.minecraft.sounds.SoundSource.BLOCKS,
-					random.nextFloat() * 0.25F + 0.75F,
-					random.nextFloat() + 0.5F,
-					false
-				);
-			}
+		if (random.nextInt(48) == 0) {
+			level.playLocalSound(
+				pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+				SoundEvents.WATER_AMBIENT,
+				net.minecraft.sounds.SoundSource.BLOCKS,
+				random.nextFloat() * 0.25F + 0.75F,
+				random.nextFloat() + 0.5F,
+				false
+			);
 		}
 	}
 

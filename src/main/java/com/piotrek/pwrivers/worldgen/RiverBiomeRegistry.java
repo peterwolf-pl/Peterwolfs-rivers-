@@ -11,10 +11,18 @@ import net.minecraft.world.level.biome.Biome;
 public final class RiverBiomeRegistry {
 	public static final String MOD_ID = "peterwolfs_rivers";
 
-	public static final ResourceKey<Biome> RIVER_BIOME = ResourceKey.create(
+	/**
+	 * Primary river biome: Rivers by Peterwolf ("Rzeki Peterwolfa").
+	 */
+	public static final ResourceKey<Biome> RIVERS_BY_PETERWOLF = ResourceKey.create(
 		Registries.BIOME,
-		Identifier.fromNamespaceAndPath(MOD_ID, "river")
+		Identifier.fromNamespaceAndPath(MOD_ID, "rivers_by_peterwolf")
 	);
+
+	/**
+	 * Backward compatibility alias pointing to RIVERS_BY_PETERWOLF.
+	 */
+	public static final ResourceKey<Biome> RIVER_BIOME = RIVERS_BY_PETERWOLF;
 
 	private RiverBiomeRegistry() {}
 

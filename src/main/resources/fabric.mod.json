@@ -19,6 +19,7 @@
     ]
   },
   "mixins": [
+    "peterwolfs_rivers.mixins.json",
     "peterwolfs_rivers.client.mixins.json"
   ],
   "depends": {

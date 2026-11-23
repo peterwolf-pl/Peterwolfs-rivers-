@@ -107,9 +107,12 @@ public final class RiverEntityPhysics {
 				float yawTorque = sample.vorticity() * 1.5F;
 				entity.setYRot(entity.getYRot() + yawTorque);
 			}
+		} else if (entity instanceof com.piotrek.pwrivers.vessel.WresslaEntity) {
+			// Wressla catamaran handles its own internal hydrodynamics coupling
+			return;
 		} else {
 			// Other floating entities / generic mobs
-			double drag = 0.05;
+			double drag = 0.06;
 			double targetVx = Mth.lerp(drag, vel.x, current.x);
 			double targetVz = Mth.lerp(drag, vel.z, current.z);
 			entity.setDeltaMovement(new Vec3(targetVx, vel.y, targetVz));
