@@ -145,6 +145,11 @@ public class WresslaEntity extends Entity implements Leashable {
 	}
 
 	@Override
+	public boolean isClientAuthoritative() {
+		return false;
+	}
+
+	@Override
 	protected void defineSynchedData(SynchedEntityData.Builder builder) {
 		builder.define(HELMSMAN_ID, -1);
 		builder.define(ENGINE_ACTIVE, true);
@@ -540,8 +545,7 @@ public class WresslaEntity extends Entity implements Leashable {
 		};
 	}
 
-	public Vec3 applyMooringConstraints(Vec3 vel, float yaw, float windStrength) {
-		Vec3 adjusted = vel;
+	public float applyMooringConstraintsYaw(float yaw) {
 		float sumError = 0.0F;
 		float totalWeight = 0.0F;
 
@@ -565,6 +569,34 @@ public class WresslaEntity extends Entity implements Leashable {
 			);
 			sumError += error * w;
 			totalWeight += w;
+		}
+
+		if (totalWeight > 1.0E-4F) {
+			float avgError = sumError / totalWeight;
+			float maxStep = 2.5F;
+			float appliedStep = Mth.clamp(avgError * 0.35F, -maxStep, maxStep);
+			return Mth.wrapDegrees(yaw + appliedStep);
+		}
+
+		return yaw;
+	}
+
+	public Vec3 applyMooringConstraintsVelocity(Vec3 vel, float yaw, float windStrength) {
+		Vec3 adjusted = vel;
+
+		for (int i = 0; i < CLEAT_COUNT; i++) {
+			if (!this.isCleatAttached(i)) continue;
+			Vec3 anchorPos = this.getCleatAnchorPos(i);
+			if (anchorPos == null) {
+				this.detachCleat(i);
+				continue;
+			}
+
+			Vec3 cleatWorld = this.getCleatWorldPos(i, this.position(), yaw);
+			double maxLine = 5.5; // Dock line max extension
+
+			Vec3 diff = anchorPos.subtract(cleatWorld);
+			double dist = diff.length();
 
 			if (dist > maxLine) {
 				Vec3 norm = diff.normalize();
@@ -575,14 +607,11 @@ public class WresslaEntity extends Entity implements Leashable {
 			}
 		}
 
-		if (totalWeight > 1.0E-4F) {
-			float avgError = sumError / totalWeight;
-			float maxStep = 2.5F;
-			float appliedStep = Mth.clamp(avgError * 0.35F, -maxStep, maxStep);
-			this.setYRot(Mth.wrapDegrees(yaw + appliedStep));
-		}
-
 		return adjusted;
+	}
+
+	public Vec3 applyMooringConstraints(Vec3 vel, float yaw, float windStrength) {
+		return this.applyMooringConstraintsVelocity(vel, yaw, windStrength);
 	}
 
 	private static final Map<UUID, BlockPos> PENDING_FENCE_MOORING = new ConcurrentHashMap<>();
@@ -995,18 +1024,19 @@ public class WresslaEntity extends Entity implements Leashable {
 			double headingRad = Math.toRadians(oldYaw);
 			Vec3 fwd = new Vec3(-Math.sin(headingRad), 0.0, Math.cos(headingRad));
 
+			double motorPower = (throttle >= 0)
+				? throttle * 0.30
+				: throttle * 0.15;
+
+			// Outboard vector thrust turns catamaran effectively at all speeds including idle
+			float speedFactor = 0.55F + (float) Math.abs(motorPower) * 1.5F;
+			float turnRate = (this.getRudderAngle() / 30.0F) * speedFactor * 2.5F;
+			if (motorPower < -1.0E-4) {
+				turnRate = -turnRate; // Reverse steering in reverse gear
+			}
+			newYaw = Mth.wrapDegrees(oldYaw + turnRate);
+
 			if (Math.abs(throttle) > 0.05F) {
-				double motorPower = (throttle >= 0)
-					? throttle * 0.30
-					: throttle * 0.15;
-
-				float speedFactor = 0.55F + (float) Math.abs(motorPower) * 1.5F;
-				float turnRate = (this.getRudderAngle() / 30.0F) * speedFactor * 2.5F;
-				if (motorPower < -1.0E-4) {
-					turnRate = -turnRate; // Reverse steering in reverse gear
-				}
-				newYaw = Mth.wrapDegrees(oldYaw + turnRate);
-
 				Vec3 targetVel = fwd.scale(motorPower).add(riverCurrent);
 				newVel = new Vec3(
 					Mth.lerp(0.15, currentVel.x, targetVel.x),
@@ -1056,10 +1086,10 @@ public class WresslaEntity extends Entity implements Leashable {
 			);
 		}
 
-		// Gentle rudder steering influence when drifting with current or wind
+		// Responsive rudder steering influence when drifting with current or wind
 		double driftSpeed = Math.sqrt(newVel.x * newVel.x + newVel.z * newVel.z);
 		if (driftSpeed > 0.005) {
-			float driftTurn = (this.getRudderAngle() / 30.0F) * 0.20F * (float) Math.min(1.0, driftSpeed / 0.02);
+			float driftTurn = (this.getRudderAngle() / 30.0F) * 0.50F * (float) Math.min(1.0, driftSpeed / 0.02);
 			newYaw = Mth.wrapDegrees(newYaw + driftTurn);
 		}
 
@@ -1069,8 +1099,8 @@ public class WresslaEntity extends Entity implements Leashable {
 		}
 
 		// 3. Apply Mooring Constraints across the 4 corner cleats
-		newVel = this.applyMooringConstraints(newVel, newYaw, currentWindStrength);
-		newYaw = this.getYRot();
+		newYaw = this.applyMooringConstraintsYaw(newYaw);
+		newVel = this.applyMooringConstraintsVelocity(newVel, newYaw, currentWindStrength);
 
 		// Water detection & draft leveling
 		double surface = this.findWaterSurface();

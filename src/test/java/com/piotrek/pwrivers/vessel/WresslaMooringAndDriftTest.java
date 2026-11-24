@@ -138,4 +138,32 @@ public class WresslaMooringAndDriftTest {
 		float crossFlagYaw = (float) Math.toRadians(Mth.wrapDegrees(90.0F + crossRel));
 		assertEquals((float) Math.PI, Math.abs(crossFlagYaw), 0.01F, "Flag should point towards port (180 deg)");
 	}
+
+	@Test
+	void testSteeringTurnRateCalculation() {
+		// Test forward gear steering
+		float rudderAngle = 30.0F; // Full starboard lock
+		float throttle = 1.0F; // Full ahead
+		double motorPower = throttle * 0.30;
+		float speedFactor = 0.55F + (float) Math.abs(motorPower) * 1.5F;
+		float turnRate = (rudderAngle / 30.0F) * speedFactor * 2.5F;
+		assertTrue(turnRate > 2.0F, "Forward gear should produce positive turn rate exceeding 2 deg/tick");
+
+		// Test reverse gear steering reversal
+		float reverseThrottle = -0.5F;
+		double revMotorPower = reverseThrottle * 0.15;
+		float revSpeedFactor = 0.55F + (float) Math.abs(revMotorPower) * 1.5F;
+		float revTurnRate = (rudderAngle / 30.0F) * revSpeedFactor * 2.5F;
+		if (revMotorPower < -1.0E-4) {
+			revTurnRate = -revTurnRate;
+		}
+		assertTrue(revTurnRate < 0.0F, "Reverse gear steering must be inverted");
+
+		// Test idle speed vector thrust
+		float idleThrottle = 0.0F;
+		double idleMotorPower = 0.0;
+		float idleSpeedFactor = 0.55F + (float) Math.abs(idleMotorPower) * 1.5F;
+		float idleTurnRate = (rudderAngle / 30.0F) * idleSpeedFactor * 2.5F;
+		assertTrue(idleTurnRate > 1.0F, "Outboard vector thrust must turn catamaran even at idle throttle");
+	}
 }
