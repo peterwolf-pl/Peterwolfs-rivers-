@@ -14,4 +14,10 @@ public class WresslaRenderState extends EntityRenderState {
 
 	public final boolean[] cleatTied = new boolean[4];
 	public int targetedCleat = -1;
+
+	// Stern flag wind wave animation
+	public float flagRelativeYaw;
+	public float flagPitch;
+	public float flagWindSpeed;
+	public float gameTime;
 }

@@ -42,12 +42,15 @@ public final class WresslaWheelHighlightRenderer {
 		boolean isRiding = player.getVehicle() instanceof WresslaEntity;
 		if (!isRiding) {
 			boolean holdingLead = player.getMainHandItem().is(Items.LEAD) || player.getOffhandItem().is(Items.LEAD);
-			if (holdingLead) {
+			boolean holdsLine = WresslaEntity.isPlayerHoldingAnyCleat(player);
+			boolean aimActive = holdingLead || holdsLine || WresslaEntity.isAimingAtTiedMooring(player, level);
+
+			if (aimActive) {
 				WresslaMooringAim.Target aim = WresslaMooringAim.find(player, level, partialTick);
 				if (aim != null) {
 					if (aim.cleat() && level.getEntity(aim.vesselId()) instanceof WresslaEntity boat) {
 						Vec3 offset = boat.getCleatLocalOffset(aim.cleatIndex());
-						AABB cleatBox = WresslaMooringAim.cleatLocalBox(offset, 0.02);
+						AABB cleatBox = WresslaMooringAim.cleatLocalBox(offset, 0.04);
 						context.submitNodeCollector().submitCustomGeometry(
 							poseStack,
 							RenderTypes.lines(),

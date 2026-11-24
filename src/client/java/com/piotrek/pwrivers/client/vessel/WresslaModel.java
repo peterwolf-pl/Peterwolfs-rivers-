@@ -7,6 +7,7 @@ import net.minecraft.client.model.geom.builders.CubeListBuilder;
 import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
 import net.minecraft.client.model.geom.builders.PartDefinition;
+import net.minecraft.util.Mth;
 
 /**
  * 3D Model for Wressla - Historic Wrocław Tram River Catamaran.
@@ -34,6 +35,11 @@ public final class WresslaModel extends EntityModel<WresslaRenderState> {
 	private final ModelPart propeller;
 	private final ModelPart[] cleatKnots = new ModelPart[4];
 
+	private final ModelPart flagRoot;
+	private final ModelPart flagSeg1;
+	private final ModelPart flagSeg2;
+	private final ModelPart flagSeg3;
+
 	public WresslaModel(ModelPart root) {
 		super(root);
 		this.root = root;
@@ -45,6 +51,11 @@ public final class WresslaModel extends EntityModel<WresslaRenderState> {
 		this.cleatKnots[1] = this.hull.getChild("cleat_knot_1");
 		this.cleatKnots[2] = this.hull.getChild("cleat_knot_2");
 		this.cleatKnots[3] = this.hull.getChild("cleat_knot_3");
+
+		this.flagRoot = this.hull.getChild("flag_root");
+		this.flagSeg1 = this.flagRoot.getChild("flag_seg1");
+		this.flagSeg2 = this.flagSeg1.getChild("flag_seg2");
+		this.flagSeg3 = this.flagSeg2.getChild("flag_seg3");
 	}
 
 	public static LayerDefinition createBodyLayer() {
@@ -113,9 +124,8 @@ public final class WresslaModel extends EntityModel<WresslaRenderState> {
 			// Bow light mast
 			.texOffs(512, 0).addBox(-0.75F, -42.0F, -78.0F, 1.5F, 14.0F, 1.5F)
 			.texOffs(512, 0).addBox(-2.0F, -44.0F, -79.0F, 4.0F, 4.0F, 4.0F)
-			// Stern flagpole and blue flag
+			// Stern flagpole
 			.texOffs(512, 0).addBox(5.25F, -52.0F, 75.0F, 1.5F, 24.0F, 1.5F)
-			.texOffs(1536, 512).addBox(6.0F, -51.0F, 76.0F, 0.5F, 8.0F, 16.0F)
 			// Port stern boarding ladder
 			.texOffs(512, 0).addBox(-12.0F, -28.0F, 76.0F, 1.0F, 22.0F, 1.5F)
 			.texOffs(512, 0).addBox(-8.0F, -28.0F, 76.0F, 1.0F, 22.0F, 1.5F)
@@ -225,6 +235,32 @@ public final class WresslaModel extends EntityModel<WresslaRenderState> {
 
 		motorPart.addOrReplaceChild("propeller", propBuilder, PartPose.offset(0.0F, 12.0F, -3.5F));
 
+		// =====================================================================
+		// 7. ARTICULATED WIND FLAG AT STERN (Błękitny / Sky Azure)
+		// =====================================================================
+		PartDefinition flagRootPart = hull.addOrReplaceChild("flag_root",
+			CubeListBuilder.create(),
+			PartPose.offset(6.0F, -51.0F, 75.75F)
+		);
+
+		PartDefinition seg1 = flagRootPart.addOrReplaceChild("flag_seg1",
+			CubeListBuilder.create()
+				.texOffs(1536, 1024).addBox(0.0F, 0.0F, -0.25F, 6.0F, 8.0F, 0.5F),
+			PartPose.ZERO
+		);
+
+		PartDefinition seg2 = seg1.addOrReplaceChild("flag_seg2",
+			CubeListBuilder.create()
+				.texOffs(1560, 1024).addBox(0.0F, 0.0F, -0.25F, 6.0F, 8.0F, 0.5F),
+			PartPose.offset(6.0F, 0.0F, 0.0F)
+		);
+
+		seg2.addOrReplaceChild("flag_seg3",
+			CubeListBuilder.create()
+				.texOffs(1584, 1024).addBox(0.0F, 0.0F, -0.25F, 6.0F, 8.0F, 0.5F),
+			PartPose.offset(6.0F, 0.0F, 0.0F)
+		);
+
 		return LayerDefinition.create(mesh, ATLAS_SIZE, ATLAS_SIZE);
 	}
 
@@ -257,5 +293,28 @@ public final class WresslaModel extends EntityModel<WresslaRenderState> {
 		for (int i = 0; i < 4; i++) {
 			this.cleatKnots[i].visible = state.cleatTied[i];
 		}
+
+		// Stern flag wind orientation & articulated waving animation (matches Wind & Sails)
+		this.flagRoot.yRot = state.flagRelativeYaw;
+
+		float windFactor = Mth.clamp((state.flagWindSpeed - 0.20F) / 1.5F, 0.0F, 1.0F);
+		float limp = 1.0F - windFactor;
+		float waveSpeed = 0.25F + state.flagWindSpeed * 0.15F;
+		float phase = state.gameTime * waveSpeed;
+		float flutter = Mth.sin(phase * 2.3F) * 0.16F;
+
+		this.flagSeg1.yRot = (Mth.sin(phase) * 0.08F + flutter * 0.03F) * (0.3F + 0.7F * windFactor);
+		this.flagSeg2.yRot = (Mth.sin(phase - 1.2F) * 0.22F + flutter * 0.06F) * (0.3F + 0.7F * windFactor);
+		this.flagSeg3.yRot = (Mth.sin(phase - 2.4F) * 0.38F + flutter * 0.12F) * (0.3F + 0.7F * windFactor);
+
+		// Light wind droop sag
+		float halfPrevious = 2.5F * limp;
+		this.flagSeg2.y = -halfPrevious;
+		this.flagSeg3.y = -halfPrevious;
+		this.flagSeg2.zRot = (Mth.cos(phase - 0.8F) * 0.05F + flutter * 0.02F) * windFactor;
+		this.flagSeg3.zRot = (Mth.cos(phase - 2.0F) * 0.10F + flutter * 0.04F) * windFactor;
+
+		float droopPitch = Mth.lerp(windFactor, 18.0F, 1.0F);
+		this.flagRoot.xRot = (float) Math.toRadians(droopPitch);
 	}
 }

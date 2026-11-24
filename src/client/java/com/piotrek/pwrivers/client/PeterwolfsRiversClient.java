@@ -8,6 +8,8 @@ import com.piotrek.pwrivers.client.vessel.WresslaRenderer;
 import com.piotrek.pwrivers.client.vessel.WresslaWheelHighlightRenderer;
 import com.piotrek.pwrivers.vessel.WresslaEntity;
 import com.piotrek.pwrivers.vessel.WresslaInputPayload;
+import com.piotrek.pwrivers.vessel.WresslaMooringAim;
+import com.piotrek.pwrivers.vessel.WresslaMooringPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
@@ -19,6 +21,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.ModelLayerLocation;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
 
 /**
@@ -44,6 +47,7 @@ public class PeterwolfsRiversClient implements ClientModInitializer {
 	private static float lastRudder = 0.0F;
 	private static float lastThrottle = 0.0F;
 	private static boolean wasRidingWressla = false;
+	private static boolean wasUseDown = false;
 
 	@Override
 	public void onInitializeClient() {
@@ -60,6 +64,28 @@ public class PeterwolfsRiversClient implements ClientModInitializer {
 		LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(WresslaWheelHighlightRenderer::render);
 
 		// 3. Register Client Tick Events (Vessel input transmission & River visual effects)
+		ClientTickEvents.START_CLIENT_TICK.register(client -> {
+			if (client.player == null || client.level == null) {
+				wasUseDown = false;
+				return;
+			}
+			boolean useDown = client.options.keyUse.isDown();
+			if (useDown && !wasUseDown) {
+				WresslaMooringAim.Target aim = WresslaMooringAim.find(client.player, client.level, 1.0F);
+				if (aim != null && WresslaEntity.shouldOwnMooringClick(client.player, aim)) {
+					if (aim.cleat()) {
+						ClientPlayNetworking.send(new WresslaMooringPayload(true, aim.vesselId(), aim.cleatIndex(), BlockPos.ZERO));
+					} else if (aim.fence() != null) {
+						ClientPlayNetworking.send(new WresslaMooringPayload(false, -1, -1, aim.fence()));
+					}
+					while (client.options.keyUse.consumeClick()) {
+						// Eat click so player does not use lead on unrelated mobs/blocks
+					}
+				}
+			}
+			wasUseDown = useDown;
+		});
+
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			RiverClientEffects.tickClientEffects();
 

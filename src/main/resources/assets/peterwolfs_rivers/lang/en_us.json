@@ -16,8 +16,10 @@
   "cleat.peterwolfs_rivers.stern_port": "Stern Port",
   "cleat.peterwolfs_rivers.stern_starboard": "Stern Starboard",
   "message.peterwolfs_rivers.mooring_untied_cleat": "§e[Mooring]§r Line untied from cleat: §f%s§r.",
+  "message.peterwolfs_rivers.mooring_untied_post": "§e[Mooring]§r Line untied from dock post (%s).",
   "message.peterwolfs_rivers.mooring_cleat_selected": "§b[Mooring]§r Cleat selected: §f%s§r. Now right-click dock post.",
   "message.peterwolfs_rivers.mooring_cleat_to_post": "§a[Mooring]§r Line tied from cleat §f%s§r to dock post!",
+  "message.peterwolfs_rivers.mooring_post_selected": "§b[Mooring]§r Dock post selected. Now right-click boat cleat.",
   "message.peterwolfs_rivers.mooring_entity_to_cleat": "§a[Mooring]§r Line tied to cleat: §f%s§r!",
   "command.peterwolfs_rivers.info": "Peterwolf's Rivers Hydrodynamics Simulation",
   "command.peterwolfs_rivers.lock_cycled": "Navigation lock cycle initiated."

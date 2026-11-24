@@ -22,6 +22,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.decoration.LeashFenceKnotEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -34,8 +35,10 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Wressla - Historic Wrocław Tram River Catamaran Entity.
@@ -442,20 +445,47 @@ public class WresslaEntity extends Entity implements Leashable {
 
 	public void attachCleatToPos(int cleat, BlockPos pos) {
 		if (cleat < 0 || cleat >= CLEAT_COUNT || pos == null) return;
-		this.cleatHolderPositions[cleat] = pos.immutable();
-		this.entityData.set(CLEAT_POS[cleat], Optional.of(pos.immutable()));
+		BlockPos fixed = pos.immutable();
+		this.cleatHolderPositions[cleat] = fixed;
+		this.entityData.set(CLEAT_POS[cleat], Optional.of(fixed));
 		this.cleatHolderUuids[cleat] = null;
 		this.cleatHolderEntities[cleat] = null;
 		this.entityData.set(CLEAT_HOLDERS[cleat], -1);
+
+		if (this.level() instanceof ServerLevel serverLevel) {
+			LeashFenceKnotEntity knot = LeashFenceKnotEntity.getOrCreateKnot(serverLevel, fixed);
+			knot.playPlacementSound();
+		}
 	}
 
 	public void detachCleat(int cleat) {
 		if (cleat < 0 || cleat >= CLEAT_COUNT) return;
+		BlockPos oldPos = this.cleatHolderPositions[cleat];
 		this.cleatHolderUuids[cleat] = null;
 		this.cleatHolderEntities[cleat] = null;
 		this.cleatHolderPositions[cleat] = null;
 		this.entityData.set(CLEAT_HOLDERS[cleat], -1);
 		this.entityData.set(CLEAT_POS[cleat], Optional.empty());
+
+		if (oldPos != null && this.level() instanceof ServerLevel serverLevel) {
+			Optional<LeashFenceKnotEntity> knot = LeashFenceKnotEntity.getKnot(serverLevel, oldPos);
+			if (knot.isPresent()) {
+				boolean otherTied = false;
+				AABB area = new AABB(oldPos).inflate(16.0);
+				for (WresslaEntity other : serverLevel.getEntitiesOfClass(WresslaEntity.class, area)) {
+					for (int i = 0; i < CLEAT_COUNT; i++) {
+						if (other.getCleatFencePos(i).filter(oldPos::equals).isPresent()) {
+							otherTied = true;
+							break;
+						}
+					}
+					if (otherTied) break;
+				}
+				if (!otherTied) {
+					knot.get().discard();
+				}
+			}
+		}
 	}
 
 	@Nullable
@@ -554,60 +584,209 @@ public class WresslaEntity extends Entity implements Leashable {
 		return adjusted;
 	}
 
-	public static boolean handleAimedMooringClick(Player player) {
-		WresslaMooringAim.Target aim = WresslaMooringAim.find(player, player.level(), 1.0F);
+	private static final Map<UUID, BlockPos> PENDING_FENCE_MOORING = new ConcurrentHashMap<>();
+
+	public static void setPendingFenceMooring(UUID playerUuid, BlockPos fence) {
+		if (playerUuid != null && fence != null) {
+			PENDING_FENCE_MOORING.put(playerUuid, fence.immutable());
+		}
+	}
+
+	public static BlockPos getPendingFenceMooring(UUID playerUuid) {
+		return playerUuid != null ? PENDING_FENCE_MOORING.get(playerUuid) : null;
+	}
+
+	public static void clearPendingFenceMooring(UUID playerUuid) {
+		if (playerUuid != null) {
+			PENDING_FENCE_MOORING.remove(playerUuid);
+		}
+	}
+
+	public static boolean isPlayerHoldingAnyCleat(Player player) {
+		if (player == null) return false;
+		AABB area = player.getBoundingBox().inflate(WresslaMooringAim.REACH + 4.0);
+		for (WresslaEntity boat : player.level().getEntitiesOfClass(WresslaEntity.class, area)) {
+			for (int i = 0; i < CLEAT_COUNT; i++) {
+				if (boat.isCleatAttachedTo(i, player)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	public static boolean isAimingAtTiedMooring(Player player, Level level) {
+		WresslaMooringAim.Target aim = WresslaMooringAim.find(player, level, 1.0F);
 		if (aim == null) return false;
+		if (aim.cleat() && level.getEntity(aim.vesselId()) instanceof WresslaEntity boat) {
+			return boat.isCleatAttached(aim.cleatIndex());
+		}
+		if (!aim.cleat() && aim.fence() != null) {
+			AABB area = player.getBoundingBox().inflate(WresslaMooringAim.REACH + 4.0);
+			for (WresslaEntity boat : level.getEntitiesOfClass(WresslaEntity.class, area)) {
+				for (int i = 0; i < CLEAT_COUNT; i++) {
+					if (boat.getCleatFencePos(i).filter(aim.fence()::equals).isPresent()) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
 
+	public static boolean shouldOwnMooringClick(Player player, WresslaMooringAim.Target aim) {
+		if (player == null || aim == null) return false;
 		boolean holdsLead = player.getMainHandItem().is(Items.LEAD) || player.getOffhandItem().is(Items.LEAD);
+		if (holdsLead || isPlayerHoldingAnyCleat(player) || getPendingFenceMooring(player.getUUID()) != null) {
+			return true;
+		}
+		if (aim.cleat() && player.level().getEntity(aim.vesselId()) instanceof WresslaEntity boat) {
+			return boat.isCleatAttached(aim.cleatIndex());
+		}
+		if (!aim.cleat() && aim.fence() != null) {
+			AABB area = player.getBoundingBox().inflate(WresslaMooringAim.REACH + 4.0);
+			for (WresslaEntity boat : player.level().getEntitiesOfClass(WresslaEntity.class, area)) {
+				for (int i = 0; i < CLEAT_COUNT; i++) {
+					if (boat.getCleatFencePos(i).filter(aim.fence()::equals).isPresent()) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
 
-		if (aim.cleat()) {
-			if (player.level().getEntity(aim.vesselId()) instanceof WresslaEntity wressla) {
-				int cleat = aim.cleatIndex();
-				// 1. Untie mooring from cleat if already tied
-				if (wressla.isCleatAttached(cleat)) {
-					if (!player.level().isClientSide()) {
-						wressla.detachCleat(cleat);
+	public static void handleMooringClick(Player player, boolean isCleat, int vesselId, int cleatIndex, BlockPos fence) {
+		if (player.level().isClientSide()) return;
+		if (isCleat) {
+			if (player.level().getEntity(vesselId) instanceof WresslaEntity wressla) {
+				interactCleat(player, wressla, cleatIndex);
+			}
+		} else if (fence != null) {
+			interactFence(player, fence);
+		}
+	}
+
+	public static boolean interactCleat(Player player, WresslaEntity wressla, int cleat) {
+		if (cleat < 0 || cleat >= CLEAT_COUNT || wressla == null) return false;
+		Level level = player.level();
+
+		// 1. Untie from cleat if already tied
+		if (wressla.isCleatAttached(cleat)) {
+			if (!level.isClientSide()) {
+				wressla.detachCleat(cleat);
+				if (!player.getAbilities().instabuild) {
+					player.getInventory().add(new ItemStack(Items.LEAD));
+				}
+				notifyPlayer(player, Component.translatable("message.peterwolfs_rivers.mooring_untied_cleat", getCleatDisplayName(cleat)));
+				level.playSound(null, wressla.getX(), wressla.getY(), wressla.getZ(),
+					SoundEvents.LEAD_UNTIED, SoundSource.PLAYERS, 1.0F, 1.0F);
+			}
+			return true;
+		}
+
+		// 2. Pending fence post mooring: tie cleat to selected fence
+		BlockPos pending = getPendingFenceMooring(player.getUUID());
+		if (pending != null && WresslaMooringAim.isMooringPostBlock(level, pending)) {
+			if (!level.isClientSide()) {
+				clearPendingFenceMooring(player.getUUID());
+				wressla.attachCleatToPos(cleat, pending);
+				if (!player.getAbilities().instabuild) {
+					ItemStack lead = player.getMainHandItem().is(Items.LEAD) ? player.getMainHandItem() : player.getOffhandItem();
+					if (!lead.isEmpty()) lead.shrink(1);
+				}
+				notifyPlayer(player, Component.translatable("message.peterwolfs_rivers.mooring_cleat_to_post", getCleatDisplayName(cleat)));
+				level.playSound(null, pending.getX() + 0.5, pending.getY() + 0.5, pending.getZ() + 0.5,
+					SoundEvents.LEAD_TIED, SoundSource.PLAYERS, 1.0F, 1.0F);
+			}
+			return true;
+		}
+
+		// 3. Attach line to cleat if player holds lead
+		boolean holdsLead = player.getMainHandItem().is(Items.LEAD) || player.getOffhandItem().is(Items.LEAD);
+		if (holdsLead) {
+			if (!level.isClientSide()) {
+				wressla.attachCleatToEntity(cleat, player);
+				if (!player.getAbilities().instabuild) {
+					ItemStack lead = player.getMainHandItem().is(Items.LEAD) ? player.getMainHandItem() : player.getOffhandItem();
+					lead.shrink(1);
+				}
+				notifyPlayer(player, Component.translatable("message.peterwolfs_rivers.mooring_cleat_selected", getCleatDisplayName(cleat)));
+				level.playSound(null, wressla.getX(), wressla.getY(), wressla.getZ(),
+					SoundEvents.LEAD_TIED, SoundSource.PLAYERS, 1.0F, 1.0F);
+			}
+			return true;
+		}
+
+		return false;
+	}
+
+	public static boolean interactFence(Player player, BlockPos fence) {
+		if (fence == null) return false;
+		Level level = player.level();
+		BlockPos fixed = fence.immutable();
+		AABB search = player.getBoundingBox().inflate(WresslaMooringAim.REACH + 4.0);
+		List<WresslaEntity> boats = level.getEntitiesOfClass(WresslaEntity.class, search);
+
+		// 1. Untie if this fence already has a cleat tied to it
+		for (WresslaEntity boat : boats) {
+			for (int i = 0; i < CLEAT_COUNT; i++) {
+				if (boat.getCleatFencePos(i).filter(fixed::equals).isPresent()) {
+					if (!level.isClientSide()) {
+						boat.detachCleat(i);
 						if (!player.getAbilities().instabuild) {
 							player.getInventory().add(new ItemStack(Items.LEAD));
 						}
-						notifyPlayer(player, Component.translatable("message.peterwolfs_rivers.mooring_untied_cleat", getCleatDisplayName(cleat)));
-						player.level().playSound(null, wressla.getX(), wressla.getY(), wressla.getZ(),
+						notifyPlayer(player, Component.translatable("message.peterwolfs_rivers.mooring_untied_post", getCleatDisplayName(i)));
+						level.playSound(null, fixed.getX() + 0.5, fixed.getY() + 0.5, fixed.getZ() + 0.5,
 							SoundEvents.LEAD_UNTIED, SoundSource.PLAYERS, 1.0F, 1.0F);
 					}
 					return true;
 				}
-				// 2. Attach line to cleat if player holds lead
-				if (holdsLead) {
-					if (!player.level().isClientSide()) {
-						wressla.attachCleatToEntity(cleat, player);
-						if (!player.getAbilities().instabuild) {
-							ItemStack lead = player.getMainHandItem().is(Items.LEAD) ? player.getMainHandItem() : player.getOffhandItem();
-							lead.shrink(1);
-						}
-						notifyPlayer(player, Component.translatable("message.peterwolfs_rivers.mooring_cleat_selected", getCleatDisplayName(cleat)));
-						player.level().playSound(null, wressla.getX(), wressla.getY(), wressla.getZ(),
+			}
+		}
+
+		// 2. Tie line held by player from a cleat to this fence post
+		for (WresslaEntity boat : boats) {
+			for (int i = 0; i < CLEAT_COUNT; i++) {
+				if (boat.isCleatAttachedTo(i, player)) {
+					if (!level.isClientSide()) {
+						boat.attachCleatToPos(i, fixed);
+						notifyPlayer(player, Component.translatable("message.peterwolfs_rivers.mooring_cleat_to_post", getCleatDisplayName(i)));
+						level.playSound(null, fixed.getX() + 0.5, fixed.getY() + 0.5, fixed.getZ() + 0.5,
 							SoundEvents.LEAD_TIED, SoundSource.PLAYERS, 1.0F, 1.0F);
 					}
 					return true;
 				}
 			}
-		} else if (aim.fence() != null) {
-			// Clicked fence post: if player is holding a lead tied to a cleat, tie it to the fence post!
-			BlockPos fence = aim.fence();
-			AABB search = player.getBoundingBox().inflate(WresslaMooringAim.REACH + 2.0);
-			for (WresslaEntity wressla : player.level().getEntitiesOfClass(WresslaEntity.class, search)) {
-				for (int i = 0; i < CLEAT_COUNT; i++) {
-					if (wressla.isCleatAttachedTo(i, player)) {
-						if (!player.level().isClientSide()) {
-							wressla.attachCleatToPos(i, fence);
-							notifyPlayer(player, Component.translatable("message.peterwolfs_rivers.mooring_cleat_to_post", getCleatDisplayName(i)));
-							player.level().playSound(null, fence.getX() + 0.5, fence.getY() + 0.5, fence.getZ() + 0.5,
-								SoundEvents.LEAD_TIED, SoundSource.PLAYERS, 1.0F, 1.0F);
-						}
-						return true;
-					}
+		}
+
+		// 3. Select fence as pending mooring point if player holds lead
+		boolean holdsLead = player.getMainHandItem().is(Items.LEAD) || player.getOffhandItem().is(Items.LEAD);
+		if (holdsLead) {
+			if (!level.isClientSide()) {
+				setPendingFenceMooring(player.getUUID(), fixed);
+				if (level instanceof ServerLevel serverLevel) {
+					LeashFenceKnotEntity.getOrCreateKnot(serverLevel, fixed).playPlacementSound();
 				}
+				notifyPlayer(player, Component.translatable("message.peterwolfs_rivers.mooring_post_selected"));
 			}
+			return true;
+		}
+
+		return false;
+	}
+
+	public static boolean handleAimedMooringClick(Player player) {
+		WresslaMooringAim.Target aim = WresslaMooringAim.find(player, player.level(), 1.0F);
+		if (aim == null) return false;
+
+		if (aim.cleat()) {
+			if (player.level().getEntity(aim.vesselId()) instanceof WresslaEntity wressla) {
+				return interactCleat(player, wressla, aim.cleatIndex());
+			}
+		} else if (aim.fence() != null) {
+			return interactFence(player, aim.fence());
 		}
 		return false;
 	}

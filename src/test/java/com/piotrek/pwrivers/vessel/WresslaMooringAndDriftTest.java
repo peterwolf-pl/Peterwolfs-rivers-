@@ -96,4 +96,36 @@ public class WresslaMooringAndDriftTest {
 		assertEquals(target.z, currentVel.z, 0.001, "Should steadily approach combined drift target");
 		assertTrue(currentVel.length() < 0.1, "Drift speed must be gentle and controlled, not runaway");
 	}
+
+	@Test
+	void testPendingFenceMooringLifecycle() {
+		java.util.UUID playerId = java.util.UUID.randomUUID();
+		net.minecraft.core.BlockPos post = new net.minecraft.core.BlockPos(100, 64, -200);
+
+		assertNull(WresslaEntity.getPendingFenceMooring(playerId));
+		WresslaEntity.setPendingFenceMooring(playerId, post);
+		assertEquals(post, WresslaEntity.getPendingFenceMooring(playerId));
+
+		WresslaEntity.clearPendingFenceMooring(playerId);
+		assertNull(WresslaEntity.getPendingFenceMooring(playerId));
+	}
+
+	@Test
+	void testApparentWindFlagAngle() {
+		// Boat heading South (yaw = 0 deg).
+		// Wind blowing from North to South (trueWind = (0, 0, 5)).
+		// Downwind vector is (0, 0, 5) -> atan2(-0, 5) = 0 deg.
+		// Flag relative angle to boat yaw 0: 0 deg.
+		// Local flag orientation: 90 + 0 = 90 deg (pointing straight to stern).
+		Vec3 trueWind = new Vec3(0.0, 0.0, 5.0);
+		Vec3 boatVel = Vec3.ZERO;
+		Vec3 apparent = trueWind.subtract(boatVel);
+
+		float downwindDeg = (float) Math.toDegrees(Math.atan2(-apparent.x, apparent.z));
+		assertEquals(0.0F, downwindDeg, 0.01F, "Downwind vector should be 0 deg");
+
+		float relativeDeg = Mth.wrapDegrees(downwindDeg - 0.0F);
+		float flagYaw = (float) Math.toRadians(90.0F + relativeDeg);
+		assertEquals((float) Math.toRadians(90.0F), flagYaw, 0.01F, "Flag should point towards stern");
+	}
 }

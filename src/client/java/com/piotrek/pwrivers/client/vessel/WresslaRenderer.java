@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import com.piotrek.pwrivers.PeterwolfsRiversMod;
 import com.piotrek.pwrivers.client.PeterwolfsRiversClient;
+import com.piotrek.pwrivers.integration.WindAndSailsRiverAdapter;
 import com.piotrek.pwrivers.vessel.WresslaEntity;
 import net.minecraft.client.model.Model;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -121,6 +122,26 @@ public class WresslaRenderer extends EntityRenderer<WresslaEntity, WresslaRender
 				state.leashStates.add(leashState);
 			}
 		}
+
+		// Stern wind flag calculation (matches Wind & Sails behavior)
+		state.gameTime = (entity.level() != null ? entity.level().getGameTime() : 0L) + partialTick;
+
+		Vec3 boatVel = entity.getDeltaMovement();
+		Vec3 trueWind = WindAndSailsRiverAdapter.getWindVector(entity.level(), entity.position());
+		if (trueWind.lengthSqr() < 1.0E-4) {
+			// Gentle river valley breeze when calm or Wind & Sails mod absent
+			double rad = state.gameTime * 0.015;
+			trueWind = new Vec3(Math.sin(rad) * 0.5, 0.0, Math.cos(rad) * 0.5);
+		}
+
+		// Apparent wind = trueWind - boatVelocity
+		Vec3 apparentWind = trueWind.subtract(boatVel.x * 20.0, 0.0, boatVel.z * 20.0);
+		float apparentSpeed = (float) apparentWind.length();
+		state.flagWindSpeed = apparentSpeed;
+
+		float downwindDeg = (float) Math.toDegrees(Math.atan2(-apparentWind.x, apparentWind.z));
+		float relativeDeg = Mth.wrapDegrees(downwindDeg - state.yaw);
+		state.flagRelativeYaw = (float) Math.toRadians(90.0F + relativeDeg);
 	}
 
 	@Override

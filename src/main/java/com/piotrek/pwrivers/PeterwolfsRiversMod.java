@@ -20,16 +20,19 @@ import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.decoration.LeashFenceKnotEntity;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -129,16 +132,7 @@ public class PeterwolfsRiversMod implements ModInitializer {
 		ServerPlayNetworking.registerGlobalReceiver(WresslaMooringPayload.TYPE, (payload, context) -> {
 			context.server().execute(() -> {
 				var player = context.player();
-				if (player.level().getEntity(payload.vesselEntityId()) instanceof WresslaEntity wressla) {
-					int cleat = payload.cleatIndex();
-					if (cleat >= 0 && cleat < WresslaEntity.CLEAT_COUNT) {
-						if (payload.fencePos().isPresent()) {
-							wressla.attachCleatToPos(cleat, payload.fencePos().get());
-						} else {
-							wressla.detachCleat(cleat);
-						}
-					}
-				}
+				WresslaEntity.handleMooringClick(player, payload.cleat(), payload.vesselEntityId(), payload.cleatIndex(), payload.fencePos());
 			});
 		});
 
@@ -155,6 +149,14 @@ public class PeterwolfsRiversMod implements ModInitializer {
 			if (hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
 			if (player.getVehicle() instanceof WresslaEntity) return InteractionResult.PASS;
 			if (WresslaEntity.handleAimedControl(player)) return InteractionResult.SUCCESS;
+
+			BlockPos clicked = hitResult.getBlockPos();
+			if (level.getBlockState(clicked).is(BlockTags.FENCES) || level.getBlockState(clicked).is(BlockTags.WALLS)) {
+				if (WresslaEntity.interactFence(player, clicked)) {
+					return InteractionResult.SUCCESS;
+				}
+			}
+
 			if (WresslaEntity.handleAimedMooringClick(player)) return InteractionResult.SUCCESS;
 			return InteractionResult.PASS;
 		});
@@ -163,6 +165,14 @@ public class PeterwolfsRiversMod implements ModInitializer {
 			if (hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
 			if (player.getVehicle() instanceof WresslaEntity) return InteractionResult.PASS;
 			if (entity instanceof WresslaEntity) return InteractionResult.PASS;
+
+			if (entity instanceof LeashFenceKnotEntity knot) {
+				BlockPos pos = knot.getPos();
+				if (pos != null && WresslaEntity.interactFence(player, pos)) {
+					return InteractionResult.SUCCESS;
+				}
+			}
+
 			if (WresslaEntity.handleAimedControl(player)) return InteractionResult.SUCCESS;
 			if (WresslaEntity.handleEntityMooringClick(player, entity)) return InteractionResult.SUCCESS;
 			if (WresslaEntity.handleAimedMooringClick(player)) return InteractionResult.SUCCESS;

@@ -5,34 +5,37 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.Identifier;
 
-import java.util.Optional;
-
+/**
+ * Mooring interaction packet sent from client to server when clicking a cleat or dock fence/wall post.
+ */
 public record WresslaMooringPayload(
+	boolean cleat,
 	int vesselEntityId,
 	int cleatIndex,
-	Optional<BlockPos> fencePos
+	BlockPos fencePos
 ) implements CustomPacketPayload {
 	public static final Type<WresslaMooringPayload> TYPE = new Type<>(
-		PeterwolfsRiversMod.id("wressla_mooring")
+		Identifier.fromNamespaceAndPath(PeterwolfsRiversMod.MOD_ID, "wressla_mooring")
 	);
 
 	public static final StreamCodec<RegistryFriendlyByteBuf, WresslaMooringPayload> CODEC = new StreamCodec<>() {
 		@Override
 		public WresslaMooringPayload decode(RegistryFriendlyByteBuf buf) {
+			boolean cleat = buf.readBoolean();
 			int vesselId = buf.readVarInt();
-			int cleat = buf.readVarInt();
-			boolean hasPos = buf.readBoolean();
-			Optional<BlockPos> pos = hasPos ? Optional.of(buf.readBlockPos()) : Optional.empty();
-			return new WresslaMooringPayload(vesselId, cleat, pos);
+			int cleatIndex = buf.readByte();
+			BlockPos fence = buf.readBlockPos();
+			return new WresslaMooringPayload(cleat, vesselId, cleatIndex, fence);
 		}
 
 		@Override
 		public void encode(RegistryFriendlyByteBuf buf, WresslaMooringPayload p) {
-			buf.writeVarInt(p.vesselEntityId);
-			buf.writeVarInt(p.cleatIndex);
-			buf.writeBoolean(p.fencePos.isPresent());
-			p.fencePos.ifPresent(buf::writeBlockPos);
+			buf.writeBoolean(p.cleat());
+			buf.writeVarInt(p.vesselEntityId());
+			buf.writeByte(p.cleatIndex());
+			buf.writeBlockPos(p.fencePos());
 		}
 	};
 
