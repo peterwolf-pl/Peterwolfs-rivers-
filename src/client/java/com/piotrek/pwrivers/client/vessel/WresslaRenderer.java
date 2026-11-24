@@ -63,7 +63,7 @@ public class WresslaRenderer extends EntityRenderer<WresslaEntity, WresslaRender
 	@Override
 	public void extractRenderState(WresslaEntity entity, WresslaRenderState state, float partialTick) {
 		super.extractRenderState(entity, state, partialTick);
-		state.yaw = entity.getYRot();
+		state.yaw = Mth.rotLerp(partialTick, entity.yRotO, entity.getYRot());
 		state.wheelAngle = (float) Math.toRadians(entity.getRudderAngle() * 2.5F);
 		state.engineYaw = entity.getOutboardMotorYaw();
 		state.engineTilt = 0.0F;
@@ -141,7 +141,7 @@ public class WresslaRenderer extends EntityRenderer<WresslaEntity, WresslaRender
 
 		float downwindDeg = (float) Math.toDegrees(Math.atan2(-apparentWind.x, apparentWind.z));
 		float relativeDeg = Mth.wrapDegrees(downwindDeg - state.yaw);
-		state.flagRelativeYaw = (float) Math.toRadians(Mth.wrapDegrees(90.0F - relativeDeg));
+		state.flagRelativeYaw = (float) Math.toRadians(Mth.wrapDegrees(90.0F + relativeDeg));
 	}
 
 	@Override

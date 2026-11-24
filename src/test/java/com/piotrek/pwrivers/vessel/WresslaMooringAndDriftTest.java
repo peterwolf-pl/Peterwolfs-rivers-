@@ -116,7 +116,7 @@ public class WresslaMooringAndDriftTest {
 		// Wind blowing from South to North (headwind: trueWind = (0, 0, -5)).
 		// Downwind vector is (0, 0, -5) -> atan2(0, -5) = 180 deg.
 		// Relative downwind angle to boat yaw 0: 180 deg (blowing straight toward stern).
-		// Model flag orientation: 90 - 180 = -90 deg (pointing straight toward stern in model space).
+		// Model flag orientation: 90 + 180 = 270 = -90 deg (pointing straight toward stern in model space).
 		Vec3 trueWind = new Vec3(0.0, 0.0, -5.0);
 		Vec3 boatVel = Vec3.ZERO;
 		Vec3 apparent = trueWind.subtract(boatVel);
@@ -125,7 +125,17 @@ public class WresslaMooringAndDriftTest {
 		assertEquals(180.0F, Math.abs(downwindDeg), 0.01F, "Downwind vector should be 180 deg");
 
 		float relativeDeg = Mth.wrapDegrees(downwindDeg - 0.0F);
-		float flagYaw = (float) Math.toRadians(Mth.wrapDegrees(90.0F - relativeDeg));
+		float flagYaw = (float) Math.toRadians(Mth.wrapDegrees(90.0F + relativeDeg));
 		assertEquals((float) Math.toRadians(-90.0F), flagYaw, 0.01F, "Flag should point towards stern (-90 deg)");
+
+		// Crosswind from Starboard (blowing towards West/Port, trueWind = (-5, 0, 0)).
+		// Downwind vector is (-5, 0, 0) -> atan2(5, 0) = 90 deg (West in Minecraft).
+		// Relative downwind angle: 90 deg.
+		// Model flag orientation: 90 + 90 = 180 deg (pointing towards port in model space).
+		Vec3 crossWind = new Vec3(-5.0, 0.0, 0.0);
+		float crossDownwind = (float) Math.toDegrees(Math.atan2(-crossWind.x, crossWind.z));
+		float crossRel = Mth.wrapDegrees(crossDownwind - 0.0F);
+		float crossFlagYaw = (float) Math.toRadians(Mth.wrapDegrees(90.0F + crossRel));
+		assertEquals((float) Math.PI, Math.abs(crossFlagYaw), 0.01F, "Flag should point towards port (180 deg)");
 	}
 }
