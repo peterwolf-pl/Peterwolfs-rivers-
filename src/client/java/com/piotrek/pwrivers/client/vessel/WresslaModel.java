@@ -111,21 +111,21 @@ public final class WresslaModel extends EntityModel<WresslaRenderState> {
 			.texOffs(512, 0).addBox(-28.5F, -29.5F, 74.5F, 21.0F, 1.5F, 2.0F)
 			.texOffs(0, 0).addBox(8.0F, -28.0F, 75.0F, 20.0F, 12.0F, 1.0F)
 			.texOffs(512, 0).addBox(7.5F, -29.5F, 74.5F, 21.0F, 1.5F, 2.0F)
-			// Longitudinal roof support beams
-			.texOffs(512, 0).addBox(-27.0F, -43.0F, -64.0F, 2.0F, 2.0F, 128.0F)
-			.texOffs(512, 0).addBox(25.0F, -43.0F, -64.0F, 2.0F, 2.0F, 128.0F)
+			// Longitudinal roof support beams (raised by 0.5 block = 8 units)
+			.texOffs(512, 0).addBox(-27.0F, -51.0F, -64.0F, 2.0F, 2.0F, 128.0F)
+			.texOffs(512, 0).addBox(25.0F, -51.0F, -64.0F, 2.0F, 2.0F, 128.0F)
 			// Lower side roofs (translucent tinted canopy)
-			.texOffs(512, 512).addBox(-27.0F, -43.0F, -64.0F, 14.0F, 1.0F, 128.0F)
-			.texOffs(512, 512).addBox(13.0F, -43.0F, -64.0F, 14.0F, 1.0F, 128.0F)
+			.texOffs(512, 512).addBox(-27.0F, -51.0F, -64.0F, 14.0F, 1.0F, 128.0F)
+			.texOffs(512, 512).addBox(13.0F, -51.0F, -64.0F, 14.0F, 1.0F, 128.0F)
 			// Two-Tier Clerestory Monitor Roof (transom sides & curved top)
-			.texOffs(512, 512).addBox(-13.5F, -47.0F, -64.0F, 1.0F, 5.0F, 128.0F)
-			.texOffs(512, 512).addBox(12.5F, -47.0F, -64.0F, 1.0F, 5.0F, 128.0F)
-			.texOffs(512, 0).addBox(-14.0F, -49.0F, -66.0F, 28.0F, 2.0F, 132.0F)
+			.texOffs(512, 512).addBox(-13.5F, -55.0F, -64.0F, 1.0F, 5.0F, 128.0F)
+			.texOffs(512, 512).addBox(12.5F, -55.0F, -64.0F, 1.0F, 5.0F, 128.0F)
+			.texOffs(512, 0).addBox(-14.0F, -57.0F, -66.0F, 28.0F, 2.0F, 132.0F)
 			// Bow light mast
 			.texOffs(512, 0).addBox(-0.75F, -42.0F, -78.0F, 1.5F, 14.0F, 1.5F)
 			.texOffs(512, 0).addBox(-2.0F, -44.0F, -79.0F, 4.0F, 4.0F, 4.0F)
-			// Stern flagpole
-			.texOffs(512, 0).addBox(5.25F, -52.0F, 75.0F, 1.5F, 24.0F, 1.5F)
+			// Stern flagpole (taller by 2 blocks = 32 units)
+			.texOffs(512, 0).addBox(5.25F, -84.0F, 75.0F, 1.5F, 56.0F, 1.5F)
 			// Port stern boarding ladder
 			.texOffs(512, 0).addBox(-12.0F, -28.0F, 76.0F, 1.0F, 22.0F, 1.5F)
 			.texOffs(512, 0).addBox(-8.0F, -28.0F, 76.0F, 1.0F, 22.0F, 1.5F)
@@ -135,14 +135,14 @@ public final class WresslaModel extends EntityModel<WresslaRenderState> {
 			// Starboard stern lifebuoy
 			.texOffs(1536, 512).addBox(16.0F, -28.0F, 75.5F, 8.0F, 8.0F, 1.5F);
 
-		// Pillars & Arched Tram Brackets
+		// Pillars & Arched Tram Brackets (extended by 8 units to meet raised roof)
 		for (int z : new int[]{-56, -28, 0, 28, 56}) {
-			superstructure.texOffs(512, 0).addBox(-27.0F, -42.0F, (float)(z - 1), 2.0F, 26.0F, 2.0F);
-			superstructure.texOffs(512, 0).addBox(25.0F, -42.0F, (float)(z - 1), 2.0F, 26.0F, 2.0F);
+			superstructure.texOffs(512, 0).addBox(-27.0F, -50.0F, (float)(z - 1), 2.0F, 34.0F, 2.0F);
+			superstructure.texOffs(512, 0).addBox(25.0F, -50.0F, (float)(z - 1), 2.0F, 34.0F, 2.0F);
 		}
 		for (int z : new int[]{-42, -14, 14, 42}) {
-			superstructure.texOffs(512, 0).addBox(-26.5F, -41.5F, (float)(z - 10), 1.0F, 2.5F, 20.0F);
-			superstructure.texOffs(512, 0).addBox(25.5F, -41.5F, (float)(z - 10), 1.0F, 2.5F, 20.0F);
+			superstructure.texOffs(512, 0).addBox(-26.5F, -49.5F, (float)(z - 10), 1.0F, 2.5F, 20.0F);
+			superstructure.texOffs(512, 0).addBox(25.5F, -49.5F, (float)(z - 10), 1.0F, 2.5F, 20.0F);
 		}
 		// Fenders
 		for (int z : new int[]{-40, 40}) {
@@ -240,7 +240,7 @@ public final class WresslaModel extends EntityModel<WresslaRenderState> {
 		// =====================================================================
 		PartDefinition flagRootPart = hull.addOrReplaceChild("flag_root",
 			CubeListBuilder.create(),
-			PartPose.offset(6.0F, -51.0F, 75.75F)
+			PartPose.offset(6.0F, -83.0F, 75.75F)
 		);
 
 		PartDefinition seg1 = flagRootPart.addOrReplaceChild("flag_seg1",
@@ -296,6 +296,7 @@ public final class WresslaModel extends EntityModel<WresslaRenderState> {
 
 		// Stern flag wind orientation & articulated waving animation (matches Wind & Sails)
 		this.flagRoot.yRot = state.flagRelativeYaw;
+		this.flagRoot.xRot = 0.0F;
 
 		float windFactor = Mth.clamp((state.flagWindSpeed - 0.20F) / 1.5F, 0.0F, 1.0F);
 		float limp = 1.0F - windFactor;
@@ -303,18 +304,20 @@ public final class WresslaModel extends EntityModel<WresslaRenderState> {
 		float phase = state.gameTime * waveSpeed;
 		float flutter = Mth.sin(phase * 2.3F) * 0.16F;
 
+		// Lateral fluttering in wind
 		this.flagSeg1.yRot = (Mth.sin(phase) * 0.08F + flutter * 0.03F) * (0.3F + 0.7F * windFactor);
 		this.flagSeg2.yRot = (Mth.sin(phase - 1.2F) * 0.22F + flutter * 0.06F) * (0.3F + 0.7F * windFactor);
 		this.flagSeg3.yRot = (Mth.sin(phase - 2.4F) * 0.38F + flutter * 0.12F) * (0.3F + 0.7F * windFactor);
 
-		// Light wind droop sag
-		float halfPrevious = 2.5F * limp;
-		this.flagSeg2.y = -halfPrevious;
-		this.flagSeg3.y = -halfPrevious;
+		// Flag drooping downwards (+Y is down towards water in model coordinates)
+		float droopPitch = Mth.lerp(windFactor, 14.0F, 0.5F);
+		this.flagSeg1.zRot = (float) Math.toRadians(droopPitch);
+
+		// Light wind downward sag of trailing panels (+Y is down towards water)
+		float halfPrevious = 1.8F * limp;
+		this.flagSeg2.y = halfPrevious;
+		this.flagSeg3.y = halfPrevious;
 		this.flagSeg2.zRot = (Mth.cos(phase - 0.8F) * 0.05F + flutter * 0.02F) * windFactor;
 		this.flagSeg3.zRot = (Mth.cos(phase - 2.0F) * 0.10F + flutter * 0.04F) * windFactor;
-
-		float droopPitch = Mth.lerp(windFactor, 18.0F, 1.0F);
-		this.flagRoot.xRot = (float) Math.toRadians(droopPitch);
 	}
 }

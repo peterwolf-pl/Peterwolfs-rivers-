@@ -47,7 +47,7 @@ public class WresslaRenderer extends EntityRenderer<WresslaEntity, WresslaRender
 
 	@Override
 	protected AABB getBoundingBoxForCulling(WresslaEntity entity, float partialTick) {
-		return entity.getBoundingBox().inflate(3.5, 3.0, 5.0);
+		return entity.getBoundingBox().inflate(3.5, 4.0, 5.0);
 	}
 
 	@Override
