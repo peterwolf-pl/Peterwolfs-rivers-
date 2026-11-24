@@ -111,16 +111,18 @@ public final class WresslaModel extends EntityModel<WresslaRenderState> {
 			.texOffs(512, 0).addBox(-28.5F, -29.5F, 74.5F, 21.0F, 1.5F, 2.0F)
 			.texOffs(0, 0).addBox(8.0F, -28.0F, 75.0F, 20.0F, 12.0F, 1.0F)
 			.texOffs(512, 0).addBox(7.5F, -29.5F, 74.5F, 21.0F, 1.5F, 2.0F)
-			// Longitudinal roof support beams (raised by 0.25 block = 4 units above original)
-			.texOffs(512, 0).addBox(-27.0F, -47.0F, -64.0F, 2.0F, 2.0F, 128.0F)
-			.texOffs(512, 0).addBox(25.0F, -47.0F, -64.0F, 2.0F, 2.0F, 128.0F)
-			// Lower side roofs (translucent tinted canopy)
-			.texOffs(512, 512).addBox(-27.0F, -47.0F, -64.0F, 14.0F, 1.0F, 128.0F)
-			.texOffs(512, 512).addBox(13.0F, -47.0F, -64.0F, 14.0F, 1.0F, 128.0F)
-			// Two-Tier Clerestory Monitor Roof (transom sides & curved top)
-			.texOffs(512, 512).addBox(-13.5F, -51.0F, -64.0F, 1.0F, 5.0F, 128.0F)
-			.texOffs(512, 512).addBox(12.5F, -51.0F, -64.0F, 1.0F, 5.0F, 128.0F)
-			.texOffs(512, 0).addBox(-14.0F, -53.0F, -66.0F, 28.0F, 2.0F, 132.0F)
+			// Longitudinal roof support beams (Fascia / Architrave, width 2.7F, height 2.0F, length 129.0F)
+			.texOffs(512, 0).addBox(-27.2F, -47.0F, -64.5F, 2.7F, 2.0F, 129.0F)
+			.texOffs(512, 0).addBox(24.5F, -47.0F, -64.5F, 2.7F, 2.0F, 129.0F)
+			// Lower side roofs (canopy panels recessed cleanly into fascia and clerestory, no face overlap)
+			.texOffs(512, 512).addBox(-24.5F, -46.5F, -64.0F, 11.0F, 1.0F, 128.0F)
+			.texOffs(512, 512).addBox(13.5F, -46.5F, -64.0F, 11.0F, 1.0F, 128.0F)
+			// Two-Tier Clerestory Monitor Roof (transom sides, enclosed end caps & curved top)
+			.texOffs(512, 512).addBox(-13.5F, -50.95F, -63.5F, 1.0F, 4.45F, 127.0F)
+			.texOffs(512, 512).addBox(12.5F, -50.95F, -63.5F, 1.0F, 4.45F, 127.0F)
+			.texOffs(512, 512).addBox(-12.5F, -50.95F, -64.0F, 25.0F, 4.45F, 1.0F)
+			.texOffs(512, 512).addBox(-12.5F, -50.95F, 63.0F, 25.0F, 4.45F, 1.0F)
+			.texOffs(512, 0).addBox(-14.5F, -53.0F, -66.0F, 29.0F, 2.0F, 132.0F)
 			// Bow light mast
 			.texOffs(512, 0).addBox(-0.75F, -42.0F, -78.0F, 1.5F, 14.0F, 1.5F)
 			.texOffs(512, 0).addBox(-2.0F, -44.0F, -79.0F, 4.0F, 4.0F, 4.0F)
@@ -135,14 +137,15 @@ public final class WresslaModel extends EntityModel<WresslaRenderState> {
 			// Starboard stern lifebuoy
 			.texOffs(1536, 512).addBox(16.0F, -28.0F, 75.5F, 8.0F, 8.0F, 1.5F);
 
-		// Pillars & Arched Tram Brackets (connecting deck at Y=-16 to roof beams at Y=-47)
+		// Pillars (connecting deck at Y=-16 to bottom of roof beams at Y=-45, height 29.0F)
 		for (int z : new int[]{-56, -28, 0, 28, 56}) {
-			superstructure.texOffs(512, 0).addBox(-27.0F, -46.0F, (float)(z - 1), 2.0F, 30.0F, 2.0F);
-			superstructure.texOffs(512, 0).addBox(25.0F, -46.0F, (float)(z - 1), 2.0F, 30.0F, 2.0F);
+			superstructure.texOffs(512, 0).addBox(-27.0F, -45.0F, (float)(z - 1), 2.0F, 29.0F, 2.0F);
+			superstructure.texOffs(512, 0).addBox(25.0F, -45.0F, (float)(z - 1), 2.0F, 29.0F, 2.0F);
 		}
+		// Arched Tram Brackets (connecting between pillars under beam bottom)
 		for (int z : new int[]{-42, -14, 14, 42}) {
-			superstructure.texOffs(512, 0).addBox(-26.5F, -45.5F, (float)(z - 10), 1.0F, 2.5F, 20.0F);
-			superstructure.texOffs(512, 0).addBox(25.5F, -45.5F, (float)(z - 10), 1.0F, 2.5F, 20.0F);
+			superstructure.texOffs(512, 0).addBox(-26.0F, -45.0F, (float)(z - 13), 1.0F, 2.0F, 26.0F);
+			superstructure.texOffs(512, 0).addBox(25.0F, -45.0F, (float)(z - 13), 1.0F, 2.0F, 26.0F);
 		}
 		// Fenders
 		for (int z : new int[]{-40, 40}) {
