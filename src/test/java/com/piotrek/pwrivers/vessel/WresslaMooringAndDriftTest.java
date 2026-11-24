@@ -166,4 +166,36 @@ public class WresslaMooringAndDriftTest {
 		float idleTurnRate = (rudderAngle / 30.0F) * idleSpeedFactor * 2.5F;
 		assertTrue(idleTurnRate > 1.0F, "Outboard vector thrust must turn catamaran even at idle throttle");
 	}
+
+	@Test
+	void testRotatedHullBoundingBox() {
+		// When yaw = 0 (heading South, +Z), width is 3.5m along X, length is 10.0m along Z
+		double halfBeam = WresslaLayout.HALF_BEAM; // 1.75
+		double halfLen = WresslaLayout.HALF_LENGTH; // 5.0
+		Vec3 pos = new Vec3(10.0, 62.5, 20.0);
+
+		// Yaw = 0
+		float yawRad0 = 0.0F;
+		double fwdX0 = -Math.sin(yawRad0);
+		double fwdZ0 = Math.cos(yawRad0);
+		double rightX0 = Math.cos(yawRad0);
+		double rightZ0 = Math.sin(yawRad0);
+
+		double hX0 = Math.abs(fwdX0) * halfLen + Math.abs(rightX0) * halfBeam;
+		double hZ0 = Math.abs(fwdZ0) * halfLen + Math.abs(rightZ0) * halfBeam;
+		assertEquals(1.75, hX0, 1.0E-6, "Yaw 0 half-extent in X must equal halfBeam");
+		assertEquals(5.0, hZ0, 1.0E-6, "Yaw 0 half-extent in Z must equal halfLen");
+
+		// Yaw = 90 deg (heading West, -X)
+		float yawRad90 = (float) Math.toRadians(90.0);
+		double fwdX90 = -Math.sin(yawRad90);
+		double fwdZ90 = Math.cos(yawRad90);
+		double rightX90 = Math.cos(yawRad90);
+		double rightZ90 = Math.sin(yawRad90);
+
+		double hX90 = Math.abs(fwdX90) * halfLen + Math.abs(rightX90) * halfBeam;
+		double hZ90 = Math.abs(fwdZ90) * halfLen + Math.abs(rightZ90) * halfBeam;
+		assertEquals(5.0, hX90, 1.0E-6, "Yaw 90 half-extent in X must equal halfLen (10m long across X)");
+		assertEquals(1.75, hZ90, 1.0E-6, "Yaw 90 half-extent in Z must equal halfBeam (3.5m wide across Z)");
+	}
 }

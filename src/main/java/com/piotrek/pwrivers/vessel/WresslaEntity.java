@@ -27,11 +27,15 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -147,6 +151,44 @@ public class WresslaEntity extends Entity implements Leashable {
 	@Override
 	public boolean isClientAuthoritative() {
 		return false;
+	}
+
+	@Override
+	protected AABB makeBoundingBox(Vec3 pos) {
+		float yawRad = this.getYRot() * Mth.DEG_TO_RAD;
+		double fwdX = -Mth.sin(yawRad);
+		double fwdZ = Mth.cos(yawRad);
+		double rightX = Mth.cos(yawRad);
+		double rightZ = Mth.sin(yawRad);
+
+		double halfBeam = WresslaLayout.HALF_BEAM;
+		double halfLen = WresslaLayout.HALF_LENGTH;
+
+		double[][] corners = new double[][]{
+			{-halfBeam, -halfLen},
+			{ halfBeam, -halfLen},
+			{-halfBeam,  halfLen},
+			{ halfBeam,  halfLen}
+		};
+
+		double minX = Double.POSITIVE_INFINITY;
+		double minZ = Double.POSITIVE_INFINITY;
+		double maxX = Double.NEGATIVE_INFINITY;
+		double maxZ = Double.NEGATIVE_INFINITY;
+
+		for (double[] c : corners) {
+			double wx = pos.x + rightX * c[0] + fwdX * c[1];
+			double wz = pos.z + rightZ * c[0] + fwdZ * c[1];
+			if (wx < minX) minX = wx;
+			if (wx > maxX) maxX = wx;
+			if (wz < minZ) minZ = wz;
+			if (wz > maxZ) maxZ = wz;
+		}
+
+		double minY = pos.y - WresslaLayout.DRAFT - 0.10;
+		double maxY = pos.y + 2.80;
+
+		return new AABB(minX, minY, minZ, maxX, maxY, maxZ);
 	}
 
 	@Override
@@ -1113,43 +1155,238 @@ public class WresslaEntity extends Entity implements Leashable {
 			newVel = newVel.add(0.0, -0.04, 0.0); // Gravity fallback
 		}
 
+		// 4. Prevent rotating into piers, dock fences, or shoreline
+		if (Math.abs(newYaw - oldYaw) > 1.0E-4F) {
+			if (this.isHullColliding(this.getX(), smoothedY, this.getZ(), newYaw)) {
+				float halfStep = Mth.wrapDegrees(oldYaw + (newYaw - oldYaw) * 0.5F);
+				if (!this.isHullColliding(this.getX(), smoothedY, this.getZ(), halfStep)) {
+					newYaw = halfStep;
+				} else {
+					newYaw = oldYaw;
+				}
+			}
+		}
+
+		// 5. Resolve velocity collisions against dock piers and shoreline
+		newVel = this.resolveHullCollisions(newVel, smoothedY, newYaw);
+
 		this.setDeltaMovement(newVel);
 		this.setYRot(newYaw);
 		this.setPos(this.getX(), smoothedY, this.getZ());
 		this.move(MoverType.SELF, this.getDeltaMovement());
+		this.setBoundingBox(this.makeBoundingBox(this.position()));
 
 		// Multi-player deck carrier: carry all players standing on the deck
 		Vec3 newPos = this.position();
 		this.carryDeckStanders(deckStanders, oldPos, oldYaw, newPos, newYaw);
 	}
 
-	private double findWaterSurface() {
-		AABB bb = this.getBoundingBox();
-		int minX = Mth.floor(bb.minX);
-		int maxX = Mth.ceil(bb.maxX);
-		int minZ = Mth.floor(bb.minZ);
-		int maxZ = Mth.ceil(bb.maxZ);
-		int minY = Mth.floor(bb.minY - 1.5);
-		int maxY = Mth.ceil(bb.maxY + 0.5);
+	public boolean isHullColliding(double x, double y, double z, float yaw) {
+		float yawRad = yaw * Mth.DEG_TO_RAD;
+		double fwdX = -Mth.sin(yawRad);
+		double fwdZ = Mth.cos(yawRad);
+		double rightX = Mth.cos(yawRad);
+		double rightZ = Mth.sin(yawRad);
 
-		double highestSurface = Double.NaN;
+		double halfBeam = WresslaLayout.HALF_BEAM;
+		double halfLen = WresslaLayout.HALF_LENGTH;
+
+		double hX = Math.abs(fwdX) * halfLen + Math.abs(rightX) * halfBeam;
+		double hZ = Math.abs(fwdZ) * halfLen + Math.abs(rightZ) * halfBeam;
+
+		int minBX = Mth.floor(x - hX - 0.05);
+		int maxBX = Mth.ceil(x + hX + 0.05);
+		int minBZ = Mth.floor(z - hZ - 0.05);
+		int maxBZ = Mth.ceil(z + hZ + 0.05);
+		int minBY = Mth.floor(y - WresslaLayout.DRAFT - 0.10);
+		int maxBY = Mth.ceil(y + 1.25);
+
 		BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
+		CollisionContext context = CollisionContext.of(this);
 
-		for (int x = minX; x <= maxX; x++) {
-			for (int z = minZ; z <= maxZ; z++) {
-				for (int y = minY; y <= maxY; y++) {
-					mpos.set(x, y, z);
-					FluidState fluid = this.level().getFluidState(mpos);
-					if (fluid.is(FluidTags.WATER) || fluid.getType() == RiverFluidRegistry.RIVER_WATER || fluid.getType() == RiverFluidRegistry.FLOWING_RIVER_WATER) {
-						double surfaceY = y + fluid.getHeight(this.level(), mpos);
-						if (Double.isNaN(highestSurface) || surfaceY > highestSurface) {
-							highestSurface = surfaceY;
+		for (int bx = minBX; bx <= maxBX; bx++) {
+			for (int bz = minBZ; bz <= maxBZ; bz++) {
+				for (int by = minBY; by <= maxBY; by++) {
+					mpos.set(bx, by, bz);
+					BlockState state = this.level().getBlockState(mpos);
+					if (state.isAir() || state.is(Blocks.LILY_PAD)) continue;
+
+					VoxelShape shape = state.getCollisionShape(this.level(), mpos, context);
+					if (shape.isEmpty()) continue;
+
+					for (AABB box : shape.toAabbs()) {
+						AABB worldBox = box.move(bx, by, bz);
+						if (hullIntersectsBlockBox(x, y, z, fwdX, fwdZ, rightX, rightZ, worldBox)) {
+							return true;
 						}
 					}
 				}
 			}
 		}
-		return highestSurface;
+		return false;
+	}
+
+	private boolean hullIntersectsBlockBox(
+		double x, double y, double z,
+		double fwdX, double fwdZ, double rightX, double rightZ,
+		AABB blockBox
+	) {
+		// 1. Vertical Y overlap check
+		if (blockBox.maxY <= y - 0.65 || blockBox.minY >= y + 1.25) {
+			return false;
+		}
+
+		// 2. SAT on World X and Z axes
+		double halfBeam = 1.75;
+		double halfLen = 5.0;
+		double hX = Math.abs(fwdX) * halfLen + Math.abs(rightX) * halfBeam;
+		if (blockBox.maxX < x - hX || blockBox.minX > x + hX) return false;
+
+		double hZ = Math.abs(fwdZ) * halfLen + Math.abs(rightZ) * halfBeam;
+		if (blockBox.maxZ < z - hZ || blockBox.minZ > z + hZ) return false;
+
+		// 3. Project 4 horizontal corners of the block's AABB into the vessel's local coordinates
+		double[] cX = new double[]{blockBox.minX, blockBox.maxX, blockBox.minX, blockBox.maxX};
+		double[] cZ = new double[]{blockBox.minZ, blockBox.minZ, blockBox.maxZ, blockBox.maxZ};
+
+		double minLocX = Double.POSITIVE_INFINITY;
+		double maxLocX = Double.NEGATIVE_INFINITY;
+		double minLocZ = Double.POSITIVE_INFINITY;
+		double maxLocZ = Double.NEGATIVE_INFINITY;
+
+		for (int i = 0; i < 4; i++) {
+			double dx = cX[i] - x;
+			double dz = cZ[i] - z;
+			double lx = dx * rightX + dz * rightZ;
+			double lz = dx * fwdX + dz * fwdZ;
+			if (lx < minLocX) minLocX = lx;
+			if (lx > maxLocX) maxLocX = lx;
+			if (lz < minLocZ) minLocZ = lz;
+			if (lz > maxLocZ) maxLocZ = lz;
+		}
+
+		if (maxLocZ < -5.0 || minLocZ > 5.0) return false;
+		if (maxLocX < -1.75 || minLocX > 1.75) return false;
+
+		// Deck / bulwark level collision (pomost deck floor, fence rails, riverbank)
+		if (blockBox.maxY > y + 0.30) {
+			if (maxLocZ >= -4.85 && minLocZ <= 4.85 && maxLocX >= -1.75 && minLocX <= 1.75) {
+				return true;
+			}
+		}
+
+		// Pontoon / float level collision (submerged riverbanks, dock pilings, underwater rocks)
+		if (blockBox.minY < y + 0.35 && blockBox.maxY > y - 0.65) {
+			// Port float
+			if (maxLocX >= -1.55 && minLocX <= -0.70 && maxLocZ >= -5.0 && minLocZ <= 4.90) {
+				return true;
+			}
+			// Starboard float
+			if (maxLocX >= 0.70 && minLocX <= 1.55 && maxLocZ >= -5.0 && minLocZ <= 4.90) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	public Vec3 resolveHullCollisions(Vec3 vel, double y, float yaw) {
+		if (vel.lengthSqr() < 1.0E-8) {
+			return vel;
+		}
+
+		double curX = this.getX();
+		double curZ = this.getZ();
+
+		double targetX = curX + vel.x;
+		double targetZ = curZ + vel.z;
+
+		// If no collision at full step, allow movement
+		if (!this.isHullColliding(targetX, y, targetZ, yaw)) {
+			return vel;
+		}
+
+		// Try sliding along X only
+		boolean canSlideX = Math.abs(vel.x) > 1.0E-4 && !this.isHullColliding(targetX, y, curZ, yaw);
+		// Try sliding along Z only
+		boolean canSlideZ = Math.abs(vel.z) > 1.0E-4 && !this.isHullColliding(curX, y, targetZ, yaw);
+
+		if (canSlideX && !canSlideZ) {
+			return new Vec3(vel.x, vel.y, 0.0);
+		}
+		if (canSlideZ && !canSlideX) {
+			return new Vec3(0.0, vel.y, vel.z);
+		}
+		if (canSlideX && canSlideZ) {
+			return (Math.abs(vel.x) >= Math.abs(vel.z))
+				? new Vec3(vel.x, vel.y, 0.0)
+				: new Vec3(0.0, vel.y, vel.z);
+		}
+
+		// Blocked in primary axes: try smaller micro-step (50%, 25%) to smoothly snuggle to the dock/shore
+		for (double fraction : new double[]{0.5, 0.25}) {
+			double stepX = curX + vel.x * fraction;
+			double stepZ = curZ + vel.z * fraction;
+			if (!this.isHullColliding(stepX, y, stepZ, yaw)) {
+				return new Vec3(vel.x * fraction, vel.y, vel.z * fraction);
+			}
+		}
+
+		// Completely blocked by pier or shore
+		return new Vec3(0.0, vel.y, 0.0);
+	}
+
+	private double findWaterSurface() {
+		float yawRad = this.getYRot() * Mth.DEG_TO_RAD;
+		double fwdX = -Mth.sin(yawRad);
+		double fwdZ = Mth.cos(yawRad);
+		double rightX = Mth.cos(yawRad);
+		double rightZ = Mth.sin(yawRad);
+
+		// Sample along twin floats and center
+		double[][] sampleOffsets = new double[][]{
+			{-1.125, -3.5},
+			{-1.125, -1.75},
+			{-1.125,  0.0},
+			{-1.125,  1.75},
+			{-1.125,  3.5},
+			{ 1.125, -3.5},
+			{ 1.125, -1.75},
+			{ 1.125,  0.0},
+			{ 1.125,  1.75},
+			{ 1.125,  3.5},
+			{ 0.0,    0.0}
+		};
+
+		double sumSurface = 0.0;
+		int waterCount = 0;
+		BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
+		int minY = Mth.floor(this.getY() - 1.5);
+		int maxY = Mth.ceil(this.getY() + 0.8);
+
+		for (double[] pt : sampleOffsets) {
+			double wx = this.getX() + rightX * pt[0] + fwdX * pt[1];
+			double wz = this.getZ() + rightZ * pt[0] + fwdZ * pt[1];
+			int bx = Mth.floor(wx);
+			int bz = Mth.floor(wz);
+
+			double pointSurface = Double.NaN;
+			for (int y = maxY; y >= minY; y--) {
+				mpos.set(bx, y, bz);
+				FluidState fluid = this.level().getFluidState(mpos);
+				if (fluid.is(FluidTags.WATER) || fluid.getType() == RiverFluidRegistry.RIVER_WATER || fluid.getType() == RiverFluidRegistry.FLOWING_RIVER_WATER) {
+					pointSurface = y + fluid.getHeight(this.level(), mpos);
+					break;
+				}
+			}
+
+			if (!Double.isNaN(pointSurface)) {
+				sumSurface += pointSurface;
+				waterCount++;
+			}
+		}
+
+		return waterCount > 0 ? (sumSurface / waterCount) : Double.NaN;
 	}
 
 	private void spawnPropellerBubbles() {
