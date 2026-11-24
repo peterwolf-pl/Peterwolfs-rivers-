@@ -11,4 +11,7 @@ public class WresslaRenderState extends EntityRenderState {
 	public boolean engineActive;
 	public float engineThrottle;
 	public boolean isAimingAtWheel;
+
+	public final boolean[] cleatTied = new boolean[4];
+	public int targetedCleat = -1;
 }

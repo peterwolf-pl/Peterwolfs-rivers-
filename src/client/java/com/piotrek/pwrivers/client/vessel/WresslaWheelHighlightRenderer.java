@@ -4,12 +4,14 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.piotrek.pwrivers.vessel.WresslaEntity;
 import com.piotrek.pwrivers.vessel.WresslaLayout;
+import com.piotrek.pwrivers.vessel.WresslaMooringAim;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -39,6 +41,31 @@ public final class WresslaWheelHighlightRenderer {
 
 		boolean isRiding = player.getVehicle() instanceof WresslaEntity;
 		if (!isRiding) {
+			boolean holdingLead = player.getMainHandItem().is(Items.LEAD) || player.getOffhandItem().is(Items.LEAD);
+			if (holdingLead) {
+				WresslaMooringAim.Target aim = WresslaMooringAim.find(player, level, partialTick);
+				if (aim != null) {
+					if (aim.cleat() && level.getEntity(aim.vesselId()) instanceof WresslaEntity boat) {
+						Vec3 offset = boat.getCleatLocalOffset(aim.cleatIndex());
+						AABB cleatBox = WresslaMooringAim.cleatLocalBox(offset, 0.02);
+						context.submitNodeCollector().submitCustomGeometry(
+							poseStack,
+							RenderTypes.lines(),
+							(pose, consumer) -> drawLocalBox(pose, consumer, boat, cleatBox, partialTick, camPos)
+						);
+						return;
+					} else if (aim.fence() != null) {
+						AABB postBox = WresslaMooringAim.postColumn(aim.fence()).move(-camPos.x, -camPos.y, -camPos.z);
+						context.submitNodeCollector().submitCustomGeometry(
+							poseStack,
+							RenderTypes.lines(),
+							(pose, consumer) -> drawWorldBox(pose, consumer, postBox)
+						);
+						return;
+					}
+				}
+			}
+
 			AABB searchBox = player.getBoundingBox().inflate(6.0);
 			List<WresslaEntity> boats = level.getEntitiesOfClass(WresslaEntity.class, searchBox);
 			for (WresslaEntity boat : boats) {
@@ -52,6 +79,16 @@ public final class WresslaWheelHighlightRenderer {
 				}
 			}
 		}
+	}
+
+	private static void drawWorldBox(PoseStack.Pose pose, VertexConsumer consumer, AABB box) {
+		float[] rx = new float[]{(float) box.minX, (float) box.maxX, (float) box.maxX, (float) box.minX,
+			(float) box.minX, (float) box.maxX, (float) box.maxX, (float) box.minX};
+		float[] ry = new float[]{(float) box.minY, (float) box.minY, (float) box.minY, (float) box.minY,
+			(float) box.maxY, (float) box.maxY, (float) box.maxY, (float) box.maxY};
+		float[] rz = new float[]{(float) box.minZ, (float) box.minZ, (float) box.maxZ, (float) box.maxZ,
+			(float) box.minZ, (float) box.minZ, (float) box.maxZ, (float) box.maxZ};
+		drawBoxLines(pose, consumer, rx, ry, rz);
 	}
 
 	private static void drawLocalBox(PoseStack.Pose pose, VertexConsumer consumer, WresslaEntity boat, AABB box, float partialTick, Vec3 camPos) {

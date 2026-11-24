@@ -32,6 +32,7 @@ public final class WresslaModel extends EntityModel<WresslaRenderState> {
 	private final ModelPart wheel;
 	private final ModelPart outboardMotor;
 	private final ModelPart propeller;
+	private final ModelPart[] cleatKnots = new ModelPart[4];
 
 	public WresslaModel(ModelPart root) {
 		super(root);
@@ -40,6 +41,10 @@ public final class WresslaModel extends EntityModel<WresslaRenderState> {
 		this.wheel = this.hull.getChild("wheel");
 		this.outboardMotor = this.hull.getChild("outboard_motor");
 		this.propeller = this.outboardMotor.getChild("propeller");
+		this.cleatKnots[0] = this.hull.getChild("cleat_knot_0");
+		this.cleatKnots[1] = this.hull.getChild("cleat_knot_1");
+		this.cleatKnots[2] = this.hull.getChild("cleat_knot_2");
+		this.cleatKnots[3] = this.hull.getChild("cleat_knot_3");
 	}
 
 	public static LayerDefinition createBodyLayer() {
@@ -156,6 +161,28 @@ public final class WresslaModel extends EntityModel<WresslaRenderState> {
 		hull.addOrReplaceChild("superstructure", superstructure, PartPose.ZERO);
 		hull.addOrReplaceChild("interior", interior, PartPose.ZERO);
 
+		// 4 Mooring Cleats on the corners of the teak deck (bow & stern, port & starboard)
+		CubeListBuilder cleats = CubeListBuilder.create()
+			// Bow Port (X=-24, Z=-72)
+			.texOffs(512, 0).addBox(-25.0F, -17.5F, -75.0F, 2.0F, 1.5F, 6.0F)
+			// Bow Starboard (X=+24, Z=-72)
+			.texOffs(512, 0).addBox(23.0F, -17.5F, -75.0F, 2.0F, 1.5F, 6.0F)
+			// Stern Port (X=-24, Z=+72)
+			.texOffs(512, 0).addBox(-25.0F, -17.5F, 69.0F, 2.0F, 1.5F, 6.0F)
+			// Stern Starboard (X=+24, Z=+72)
+			.texOffs(512, 0).addBox(23.0F, -17.5F, 69.0F, 2.0F, 1.5F, 6.0F);
+		hull.addOrReplaceChild("cleats", cleats, PartPose.ZERO);
+
+		// 4 3D Rope Knots (one for each cleat, visible when cleat is tied)
+		hull.addOrReplaceChild("cleat_knot_0", CubeListBuilder.create()
+			.texOffs(1024, 0).addBox(-25.5F, -18.5F, -74.0F, 3.0F, 2.5F, 4.0F), PartPose.ZERO);
+		hull.addOrReplaceChild("cleat_knot_1", CubeListBuilder.create()
+			.texOffs(1024, 0).addBox(22.5F, -18.5F, -74.0F, 3.0F, 2.5F, 4.0F), PartPose.ZERO);
+		hull.addOrReplaceChild("cleat_knot_2", CubeListBuilder.create()
+			.texOffs(1024, 0).addBox(-25.5F, -18.5F, 70.0F, 3.0F, 2.5F, 4.0F), PartPose.ZERO);
+		hull.addOrReplaceChild("cleat_knot_3", CubeListBuilder.create()
+			.texOffs(1024, 0).addBox(22.5F, -18.5F, 70.0F, 3.0F, 2.5F, 4.0F), PartPose.ZERO);
+
 		// =====================================================================
 		// 5. STEERING WHEEL ("Koło sterowe" - clickable, rotates on Z-axis)
 		// =====================================================================
@@ -225,5 +252,10 @@ public final class WresslaModel extends EntityModel<WresslaRenderState> {
 
 		// Propeller spins with engine throttle
 		this.propeller.zRot = state.propellerAngle;
+
+		// 4 corner cleat 3D rope knots visibility
+		for (int i = 0; i < 4; i++) {
+			this.cleatKnots[i].visible = state.cleatTied[i];
+		}
 	}
 }

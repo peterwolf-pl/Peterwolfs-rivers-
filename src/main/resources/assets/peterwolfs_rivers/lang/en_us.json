@@ -11,6 +11,14 @@
   "message.peterwolfs_rivers.engine_off": "Outboard motor stopped",
   "message.peterwolfs_rivers.helm_claimed": "Steering Wressla. Use W/S for throttle, A/D to steer. Shift to dismount.",
   "message.peterwolfs_rivers.helm_occupied": "The helm is already occupied.",
+  "cleat.peterwolfs_rivers.bow_port": "Bow Port",
+  "cleat.peterwolfs_rivers.bow_starboard": "Bow Starboard",
+  "cleat.peterwolfs_rivers.stern_port": "Stern Port",
+  "cleat.peterwolfs_rivers.stern_starboard": "Stern Starboard",
+  "message.peterwolfs_rivers.mooring_untied_cleat": "§e[Mooring]§r Line untied from cleat: §f%s§r.",
+  "message.peterwolfs_rivers.mooring_cleat_selected": "§b[Mooring]§r Cleat selected: §f%s§r. Now right-click dock post.",
+  "message.peterwolfs_rivers.mooring_cleat_to_post": "§a[Mooring]§r Line tied from cleat §f%s§r to dock post!",
+  "message.peterwolfs_rivers.mooring_entity_to_cleat": "§a[Mooring]§r Line tied to cleat: §f%s§r!",
   "command.peterwolfs_rivers.info": "Peterwolf's Rivers Hydrodynamics Simulation",
   "command.peterwolfs_rivers.lock_cycled": "Navigation lock cycle initiated."
 }

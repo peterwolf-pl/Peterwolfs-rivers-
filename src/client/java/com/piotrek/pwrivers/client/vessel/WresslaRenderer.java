@@ -9,14 +9,22 @@ import net.minecraft.client.model.Model;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.util.Unit;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+
+import java.util.ArrayList;
+import java.util.Optional;
 
 public class WresslaRenderer extends EntityRenderer<WresslaEntity, WresslaRenderState> {
 	public static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(
@@ -61,6 +69,58 @@ public class WresslaRenderer extends EntityRenderer<WresslaEntity, WresslaRender
 		state.propellerAngle = entity.getPropellerAngle();
 		state.engineActive = entity.isEngineActive();
 		state.engineThrottle = entity.getEngineThrottle();
+
+		for (int i = 0; i < WresslaEntity.CLEAT_COUNT; i++) {
+			state.cleatTied[i] = entity.isCleatAttached(i);
+		}
+
+		if (state.leashStates == null) {
+			state.leashStates = new ArrayList<>();
+		} else {
+			state.leashStates.clear();
+		}
+
+		Vec3 boatPos = entity.getPosition(partialTick);
+		float yaw = Mth.rotLerp(partialTick, entity.yRotO, entity.getYRot());
+
+		for (int i = 0; i < WresslaEntity.CLEAT_COUNT; i++) {
+			if (!state.cleatTied[i]) {
+				continue;
+			}
+
+			Optional<BlockPos> knotPos = entity.getCleatFencePos(i);
+			Entity holder = entity.getCleatHolderEntity(i);
+
+			if (knotPos.isPresent() || (holder != null && holder.isAlive())) {
+				EntityRenderState.LeashState leashState = new EntityRenderState.LeashState();
+				Vec3 cleatWorld = entity.getCleatWorldPos(i, boatPos, yaw);
+
+				leashState.offset = cleatWorld.subtract(boatPos);
+				leashState.start = cleatWorld;
+
+				if (knotPos.isPresent()) {
+					BlockPos kp = knotPos.get();
+					leashState.end = new Vec3(kp.getX() + 0.5, kp.getY() + 0.5 + 0.2, kp.getZ() + 0.5);
+				} else {
+					leashState.end = holder.getRopeHoldPosition(partialTick);
+				}
+
+				BlockPos startPos = BlockPos.containing(cleatWorld);
+				BlockPos endPos = BlockPos.containing(leashState.end);
+
+				leashState.startBlockLight = entity.level().getBrightness(LightLayer.BLOCK, startPos);
+				leashState.startSkyLight = entity.level().getBrightness(LightLayer.SKY, startPos);
+				leashState.endBlockLight = entity.level().getBrightness(LightLayer.BLOCK, endPos);
+				leashState.endSkyLight = holder != null
+					? holder.level().getBrightness(LightLayer.SKY, endPos)
+					: entity.level().getBrightness(LightLayer.SKY, endPos);
+
+				double dist = cleatWorld.distanceTo(leashState.end);
+				leashState.slack = dist < 3.5;
+
+				state.leashStates.add(leashState);
+			}
+		}
 	}
 
 	@Override

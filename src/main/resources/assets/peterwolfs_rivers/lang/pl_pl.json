@@ -11,6 +11,14 @@
   "message.peterwolfs_rivers.engine_off": "Silnik zaburtowy zatrzymany",
   "message.peterwolfs_rivers.helm_claimed": "Przejęto ster Wressli. Użyj W/S do regulacji obrotów, A/D do skrętu. Shift aby puścić ster.",
   "message.peterwolfs_rivers.helm_occupied": "Ster jest już zajęty.",
+  "cleat.peterwolfs_rivers.bow_port": "Dziobowa bakburt",
+  "cleat.peterwolfs_rivers.bow_starboard": "Dziobowa sterburt",
+  "cleat.peterwolfs_rivers.stern_port": "Rufowa bakburt",
+  "cleat.peterwolfs_rivers.stern_starboard": "Rufowa sterburt",
+  "message.peterwolfs_rivers.mooring_untied_cleat": "§e[Cumowanie]§r Lina odwiązana z knagi: §f%s§r.",
+  "message.peterwolfs_rivers.mooring_cleat_selected": "§b[Cumowanie]§r Wybrano knagę: §f%s§r. Teraz kliknij słupek na pomoście.",
+  "message.peterwolfs_rivers.mooring_cleat_to_post": "§a[Cumowanie]§r Zacumowano knagę §f%s§r do słupka!",
+  "message.peterwolfs_rivers.mooring_entity_to_cleat": "§a[Cumowanie]§r Lina przywiązana do knagi: §f%s§r!",
   "command.peterwolfs_rivers.info": "Symulacja Hydrodynamiki Peterwolf's Rivers",
   "command.peterwolfs_rivers.lock_cycled": "Zainicjowano cykl śluzy żeglugowej."
 }

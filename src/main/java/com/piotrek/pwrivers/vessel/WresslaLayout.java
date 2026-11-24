@@ -45,6 +45,12 @@ public final class WresslaLayout {
 	public static final Vec3 MOTOR_MOUNT_POS = new Vec3(0.0, 0.20, 5.00);
 	public static final Vec3 PROPELLER_LOCAL_POS = new Vec3(0.0, -0.45, 4.85);
 
+	// 4 Mooring Cleat positions on the 4 corners of the teak deck
+	public static final Vec3 CLEAT_BOW_PORT = new Vec3(-1.50, DECK_Y + 0.08, -4.50);
+	public static final Vec3 CLEAT_BOW_STARBOARD = new Vec3(1.50, DECK_Y + 0.08, -4.50);
+	public static final Vec3 CLEAT_STERN_PORT = new Vec3(-1.50, DECK_Y + 0.08, 4.50);
+	public static final Vec3 CLEAT_STERN_STARBOARD = new Vec3(1.50, DECK_Y + 0.08, 4.50);
+
 	public static boolean isWithinDeckBounds(double localX, double localZ) {
 		return localX >= DECK_MIN_X && localX <= DECK_MAX_X && localZ >= DECK_MIN_Z && localZ <= DECK_MAX_Z;
 	}
