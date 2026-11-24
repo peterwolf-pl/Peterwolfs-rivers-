@@ -127,18 +127,21 @@ public class PeterwolfsRiversMod implements ModInitializer {
 		// 6. Helmsman & Wheel Click Interaction Callbacks
 		UseItemCallback.EVENT.register((player, level, hand) -> {
 			if (hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
+			if (player.getVehicle() instanceof WresslaEntity) return InteractionResult.PASS;
 			if (WresslaEntity.handleAimedControl(player)) return InteractionResult.SUCCESS;
 			return InteractionResult.PASS;
 		});
 
 		UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
 			if (hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
+			if (player.getVehicle() instanceof WresslaEntity) return InteractionResult.PASS;
 			if (WresslaEntity.handleAimedControl(player)) return InteractionResult.SUCCESS;
 			return InteractionResult.PASS;
 		});
 
 		UseEntityCallback.EVENT.register((player, level, hand, entity, hitResult) -> {
 			if (hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
+			if (player.getVehicle() instanceof WresslaEntity) return InteractionResult.PASS;
 			if (entity instanceof WresslaEntity) return InteractionResult.PASS;
 			if (WresslaEntity.handleAimedControl(player)) return InteractionResult.SUCCESS;
 			return InteractionResult.PASS;

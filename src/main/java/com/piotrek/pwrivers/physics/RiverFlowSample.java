@@ -7,8 +7,8 @@ import net.minecraft.world.phys.Vec3;
  * High-fidelity hydrological sample at an exact world position (X, Y, Z).
  * Returned by {@link RiverPhysicsEngine#sampleFlow(net.minecraft.world.level.Level, Vec3)}.
  *
- * @param velocity 3D velocity vector (m/s in Minecraft blocks per tick or SI standard)
- * @param currentSpeed Scalar horizontal speed (|vx, vz|) in blocks/sec
+ * @param velocity 3D velocity vector in m/s. Entity motion must use {@link #velocityPerTick()}.
+ * @param currentSpeed Scalar horizontal speed (|vx, vz|) in m/s
  * @param flowDirectionDeg Direction water flows toward, in Minecraft degrees (0=South, 90=West, 180=North, 270=East)
  * @param localDepth Total water depth from surface to riverbed at this column (blocks)
  * @param waterSurfaceHeight Exact absolute Y coordinate of water surface
@@ -67,5 +67,10 @@ public record RiverFlowSample(
 
 	public boolean hasCurrent() {
 		return this.currentSpeed > 0.005 || Math.abs(this.velocity.y) > 0.005;
+	}
+
+	/** m/s to blocks/tick. 0.95 m/s is a drift of about 0.048, not a 0.95 shove. */
+	public Vec3 velocityPerTick() {
+		return this.velocity.scale(1.0 / 20.0);
 	}
 }

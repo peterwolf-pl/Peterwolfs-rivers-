@@ -56,6 +56,7 @@ public class WresslaEntity extends Entity {
 	public float clientRudderInput;
 	public float clientThrottleInput;
 	private int inputFreshTicks;
+	private long lastClaimGameTime = -1L;
 
 	private int engineSoundCooldown;
 	private float propellerAngle;
@@ -173,14 +174,19 @@ public class WresslaEntity extends Entity {
 		}
 	}
 
+	public long getLastClaimGameTime() {
+		return this.lastClaimGameTime;
+	}
+
 	public boolean tryClaimHelm(LivingEntity captain) {
 		if (captain == null || !captain.isAlive()) return false;
 		Entity current = this.getHelmsman();
-		if (current != null && current != captain) return false;
+		if (current != null && current != captain && current.isAlive() && this.hasPassenger(current)) return false;
 		if (captain.getVehicle() != null && captain.getVehicle() != this) return false;
 		if (captain.getVehicle() != this) {
 			if (!captain.startRiding(this)) return false;
 		}
+		this.lastClaimGameTime = this.level().getGameTime();
 		this.setHelmsman(captain);
 		captain.setYRot(this.getYRot());
 		captain.setYHeadRot(this.getYRot());
@@ -189,6 +195,10 @@ public class WresslaEntity extends Entity {
 
 	public boolean releaseHelm(LivingEntity captain) {
 		if (!this.isHelmsman(captain) && captain.getVehicle() != this) return false;
+		// Grace period: ignore dismount within 10 ticks (0.5s) of claiming to prevent immediate eject
+		if (this.level().getGameTime() - this.lastClaimGameTime < 10L) {
+			return false;
+		}
 		this.setHelmsman(null);
 		if (captain.getVehicle() == this) {
 			captain.stopRiding();
@@ -218,7 +228,7 @@ public class WresslaEntity extends Entity {
 
 	@Override
 	protected boolean canAddPassenger(Entity passenger) {
-		return passenger instanceof LivingEntity && this.getPassengers().isEmpty();
+		return passenger instanceof LivingEntity && (this.getPassengers().isEmpty() || this.hasPassenger(passenger));
 	}
 
 	@Override
@@ -260,22 +270,32 @@ public class WresslaEntity extends Entity {
 	}
 
 	public static boolean handleAimedControl(Player player) {
+		// If player is already riding a Wressla at the helm:
+		if (player.getVehicle() instanceof WresslaEntity wressla) {
+			// NEVER dismount on right-click!
+			// If player is aiming at the wheel console, allow toggling engine (ignition)
+			// with debounce so boarding click doesn't immediately toggle engine.
+			if (wressla.isAimingAtWheel(player, 1.0F)) {
+				long now = player.level().getGameTime();
+				if (now - wressla.lastClaimGameTime > 10L) {
+					if (!player.level().isClientSide()) {
+						wressla.toggleEngine(player);
+					}
+					return true;
+				}
+			}
+			return false;
+		}
+
+		// Player is not riding; search nearby Wressla to claim helm:
 		AABB search = player.getBoundingBox().inflate(6.0);
 		for (WresslaEntity wressla : player.level().getEntitiesOfClass(WresslaEntity.class, search)) {
-			boolean aiming = wressla.isAimingAtWheel(player, 1.0F);
-			Vec3 local = wressla.worldToLocal(player.position());
-			boolean nearHelm = local.distanceTo(WresslaLayout.HELMSMAN_POS) < 2.5;
-
-			if (aiming || nearHelm) {
+			if (wressla.isAimingAtWheel(player, 1.0F)) {
 				if (!player.level().isClientSide()) {
-					if (player.getVehicle() == wressla) {
-						wressla.releaseHelm(player);
+					if (!wressla.tryClaimHelm(player)) {
+						notifyPlayer(player, Component.translatable("message.peterwolfs_rivers.helm_occupied"));
 					} else {
-						if (!wressla.tryClaimHelm(player)) {
-							notifyPlayer(player, Component.translatable("message.peterwolfs_rivers.helm_occupied"));
-						} else {
-							notifyPlayer(player, Component.translatable("message.peterwolfs_rivers.helm_claimed"));
-						}
+						notifyPlayer(player, Component.translatable("message.peterwolfs_rivers.helm_claimed"));
 					}
 				}
 				return true;
@@ -449,7 +469,7 @@ public class WresslaEntity extends Entity {
 		// River current entrainment (drift with water) & vorticity
 		RiverFlowSample riverSample = RiverPhysicsEngine.getInstance().sampleFlow(this.level(), this.position());
 		if (riverSample.hasCurrent()) {
-			Vec3 riverCurrent = riverSample.velocity();
+			Vec3 riverCurrent = riverSample.velocityPerTick();
 			double coupling = this.isEngineActive() ? 0.05 : 0.12;
 			newVel = new Vec3(
 				Mth.lerp(coupling, newVel.x, riverCurrent.x),

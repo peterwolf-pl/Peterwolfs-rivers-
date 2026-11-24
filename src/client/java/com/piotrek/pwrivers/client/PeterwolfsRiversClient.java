@@ -43,6 +43,7 @@ public class PeterwolfsRiversClient implements ClientModInitializer {
 
 	private static float lastRudder = 0.0F;
 	private static float lastThrottle = 0.0F;
+	private static boolean wasRidingWressla = false;
 
 	@Override
 	public void onInitializeClient() {
@@ -63,6 +64,15 @@ public class PeterwolfsRiversClient implements ClientModInitializer {
 			RiverClientEffects.tickClientEffects();
 
 			if (client.player != null && client.player.getVehicle() instanceof WresslaEntity wressla) {
+				boolean justBoarded = !wasRidingWressla;
+				wasRidingWressla = true;
+
+				if (justBoarded) {
+					// Flush any buffered key clicks from walking/sneaking before boarding
+					client.options.keyShift.consumeClick();
+					KEY_WRESSLA_ENGINE.consumeClick();
+				}
+
 				float rudder = 0.0F;
 				if (client.options.keyLeft.isDown()) rudder -= 1.0F;
 				if (client.options.keyRight.isDown()) rudder += 1.0F;
@@ -71,8 +81,8 @@ public class PeterwolfsRiversClient implements ClientModInitializer {
 				if (client.options.keyUp.isDown()) throttle += 1.0F;
 				if (client.options.keyDown.isDown()) throttle -= 1.0F;
 
-				boolean toggleEngine = KEY_WRESSLA_ENGINE.consumeClick();
-				boolean dismountHelm = client.options.keyShift.consumeClick();
+				boolean toggleEngine = !justBoarded && KEY_WRESSLA_ENGINE.consumeClick();
+				boolean dismountHelm = !justBoarded && client.options.keyShift.consumeClick();
 
 				boolean inputChanged = Math.abs(rudder - lastRudder) > 0.01F || Math.abs(throttle - lastThrottle) > 0.01F;
 
@@ -87,6 +97,8 @@ public class PeterwolfsRiversClient implements ClientModInitializer {
 						dismountHelm
 					));
 				}
+			} else {
+				wasRidingWressla = false;
 			}
 		});
 	}

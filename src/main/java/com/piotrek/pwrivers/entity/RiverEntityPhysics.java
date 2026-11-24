@@ -64,7 +64,7 @@ public final class RiverEntityPhysics {
 		RiverFlowSample sample = RiverPhysicsEngine.getInstance().sampleFlow(level, pos);
 		if (!sample.hasCurrent()) return;
 
-		Vec3 current = sample.velocity();
+		Vec3 current = sample.velocityPerTick();
 		Vec3 vel = entity.getDeltaMovement();
 
 		if (entity instanceof ItemEntity) {
