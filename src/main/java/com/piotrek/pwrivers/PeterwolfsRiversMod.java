@@ -164,7 +164,19 @@ public class PeterwolfsRiversMod implements ModInitializer {
 		UseEntityCallback.EVENT.register((player, level, hand, entity, hitResult) -> {
 			if (hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
 			if (player.getVehicle() instanceof WresslaEntity) return InteractionResult.PASS;
-			if (entity instanceof WresslaEntity) return InteractionResult.PASS;
+
+			if (entity instanceof WresslaEntity wressla) {
+				boolean holdsLead = player.getMainHandItem().is(net.minecraft.world.item.Items.LEAD) || player.getOffhandItem().is(net.minecraft.world.item.Items.LEAD);
+				boolean holdsLine = WresslaEntity.isPlayerHoldingAnyCleat(player);
+				boolean hasPending = WresslaEntity.getPendingFenceMooring(player.getUUID()) != null;
+				if (holdsLead || holdsLine || hasPending) {
+					net.minecraft.world.phys.Vec3 loc = hitResult != null ? hitResult.getLocation().subtract(wressla.position()) : net.minecraft.world.phys.Vec3.ZERO;
+					if (wressla.interact(player, hand, loc) == InteractionResult.SUCCESS) {
+						return InteractionResult.SUCCESS;
+					}
+				}
+				return InteractionResult.PASS;
+			}
 
 			if (entity instanceof LeashFenceKnotEntity knot) {
 				BlockPos pos = knot.getPos();

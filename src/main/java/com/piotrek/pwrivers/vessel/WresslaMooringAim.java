@@ -20,12 +20,12 @@ import java.util.Optional;
  */
 public final class WresslaMooringAim {
 	public static final double REACH = 14.0;
-	public static final double CLEAT_HALF_X = 0.22;
-	public static final double CLEAT_HALF_Z = 0.35;
-	public static final double CLEAT_HALF_Y = 0.22;
+	public static final double CLEAT_HALF_X = 0.40;
+	public static final double CLEAT_HALF_Z = 0.50;
+	public static final double CLEAT_HALF_Y = 0.35;
 	public static final double POST_MIN = 0.375;
 	public static final double POST_MAX = 0.625;
-	public static final double CLICK_PAD = 0.12;
+	public static final double CLICK_PAD = 0.25;
 
 	private WresslaMooringAim() {}
 
@@ -58,7 +58,7 @@ public final class WresslaMooringAim {
 			float yaw = Mth.rotLerp(partialTick, wressla.yRotO, wressla.getYRot());
 			for (int i = 0; i < WresslaEntity.CLEAT_COUNT; i++) {
 				double dist = cleatDistance(eye, look, pos, yaw, wressla.getCleatLocalOffset(i), CLICK_PAD);
-				if (dist > REACH || dist > occlude + 0.15) {
+				if (dist > REACH || dist > occlude + 0.35) {
 					continue;
 				}
 				if (best == null || dist < best.distance) {

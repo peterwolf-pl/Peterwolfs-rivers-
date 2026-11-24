@@ -78,9 +78,6 @@ public class PeterwolfsRiversClient implements ClientModInitializer {
 					} else if (aim.fence() != null) {
 						ClientPlayNetworking.send(new WresslaMooringPayload(false, -1, -1, aim.fence()));
 					}
-					while (client.options.keyUse.consumeClick()) {
-						// Eat click so player does not use lead on unrelated mobs/blocks
-					}
 				}
 			}
 			wasUseDown = useDown;

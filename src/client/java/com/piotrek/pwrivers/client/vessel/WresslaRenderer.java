@@ -141,7 +141,7 @@ public class WresslaRenderer extends EntityRenderer<WresslaEntity, WresslaRender
 
 		float downwindDeg = (float) Math.toDegrees(Math.atan2(-apparentWind.x, apparentWind.z));
 		float relativeDeg = Mth.wrapDegrees(downwindDeg - state.yaw);
-		state.flagRelativeYaw = (float) Math.toRadians(90.0F + relativeDeg);
+		state.flagRelativeYaw = (float) Math.toRadians(Mth.wrapDegrees(90.0F - relativeDeg));
 	}
 
 	@Override

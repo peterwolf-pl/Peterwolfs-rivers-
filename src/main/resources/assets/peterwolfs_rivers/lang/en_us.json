@@ -15,6 +15,7 @@
   "cleat.peterwolfs_rivers.bow_starboard": "Bow Starboard",
   "cleat.peterwolfs_rivers.stern_port": "Stern Port",
   "cleat.peterwolfs_rivers.stern_starboard": "Stern Starboard",
+  "message.peterwolfs_rivers.mooring_cleat_already_tied": "§e[Mooring]§r Cleat (§f%s§r) already has a line attached. Click with empty hand to untie.",
   "message.peterwolfs_rivers.mooring_untied_cleat": "§e[Mooring]§r Line untied from cleat: §f%s§r.",
   "message.peterwolfs_rivers.mooring_untied_post": "§e[Mooring]§r Line untied from dock post (%s).",
   "message.peterwolfs_rivers.mooring_cleat_selected": "§b[Mooring]§r Cleat selected: §f%s§r. Now right-click dock post.",

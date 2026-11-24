@@ -96,6 +96,7 @@ public class WresslaEntity extends Entity implements Leashable {
 	private final UUID[] cleatHolderUuids = new UUID[CLEAT_COUNT];
 	private final BlockPos[] cleatHolderPositions = new BlockPos[CLEAT_COUNT];
 	private final Entity[] cleatHolderEntities = new Entity[CLEAT_COUNT];
+	private final long[] cleatLastInteractTimes = new long[CLEAT_COUNT];
 
 	@Nullable
 	private Leashable.LeashData leashData;
@@ -670,25 +671,18 @@ public class WresslaEntity extends Entity implements Leashable {
 	public static boolean interactCleat(Player player, WresslaEntity wressla, int cleat) {
 		if (cleat < 0 || cleat >= CLEAT_COUNT || wressla == null) return false;
 		Level level = player.level();
-
-		// 1. Untie from cleat if already tied
-		if (wressla.isCleatAttached(cleat)) {
-			if (!level.isClientSide()) {
-				wressla.detachCleat(cleat);
-				if (!player.getAbilities().instabuild) {
-					player.getInventory().add(new ItemStack(Items.LEAD));
-				}
-				notifyPlayer(player, Component.translatable("message.peterwolfs_rivers.mooring_untied_cleat", getCleatDisplayName(cleat)));
-				level.playSound(null, wressla.getX(), wressla.getY(), wressla.getZ(),
-					SoundEvents.LEAD_UNTIED, SoundSource.PLAYERS, 1.0F, 1.0F);
-			}
-			return true;
+		long now = level.getGameTime();
+		if (now - wressla.cleatLastInteractTimes[cleat] < 6L) {
+			return true; // Debounce rapid multi-trigger interactions
 		}
 
-		// 2. Pending fence post mooring: tie cleat to selected fence
+		boolean holdsLead = player.getMainHandItem().is(Items.LEAD) || player.getOffhandItem().is(Items.LEAD);
 		BlockPos pending = getPendingFenceMooring(player.getUUID());
+
+		// 1. Pending fence post mooring: tie cleat to selected fence
 		if (pending != null && WresslaMooringAim.isMooringPostBlock(level, pending)) {
 			if (!level.isClientSide()) {
+				wressla.cleatLastInteractTimes[cleat] = now;
 				clearPendingFenceMooring(player.getUUID());
 				wressla.attachCleatToPos(cleat, pending);
 				if (!player.getAbilities().instabuild) {
@@ -702,10 +696,34 @@ public class WresslaEntity extends Entity implements Leashable {
 			return true;
 		}
 
-		// 3. Attach line to cleat if player holds lead
-		boolean holdsLead = player.getMainHandItem().is(Items.LEAD) || player.getOffhandItem().is(Items.LEAD);
+		// 2. Cleat is already tied
+		if (wressla.isCleatAttached(cleat)) {
+			if (holdsLead) {
+				// Player clicked with a lead on an already-tied cleat: inform them
+				if (!level.isClientSide()) {
+					wressla.cleatLastInteractTimes[cleat] = now;
+					notifyPlayer(player, Component.translatable("message.peterwolfs_rivers.mooring_cleat_already_tied", getCleatDisplayName(cleat)));
+				}
+				return true;
+			}
+			// Untie with empty hand or other item
+			if (!level.isClientSide()) {
+				wressla.cleatLastInteractTimes[cleat] = now;
+				wressla.detachCleat(cleat);
+				if (!player.getAbilities().instabuild) {
+					player.getInventory().add(new ItemStack(Items.LEAD));
+				}
+				notifyPlayer(player, Component.translatable("message.peterwolfs_rivers.mooring_untied_cleat", getCleatDisplayName(cleat)));
+				level.playSound(null, wressla.getX(), wressla.getY(), wressla.getZ(),
+					SoundEvents.LEAD_UNTIED, SoundSource.PLAYERS, 1.0F, 1.0F);
+			}
+			return true;
+		}
+
+		// 3. Attach line to open cleat if player holds lead
 		if (holdsLead) {
 			if (!level.isClientSide()) {
+				wressla.cleatLastInteractTimes[cleat] = now;
 				wressla.attachCleatToEntity(cleat, player);
 				if (!player.getAbilities().instabuild) {
 					ItemStack lead = player.getMainHandItem().is(Items.LEAD) ? player.getMainHandItem() : player.getOffhandItem();
@@ -819,8 +837,35 @@ public class WresslaEntity extends Entity implements Leashable {
 			return InteractionResult.SUCCESS;
 		}
 
+		// 1. Aimed mooring via raycast
 		if (handleAimedMooringClick(player)) {
 			return InteractionResult.SUCCESS;
+		}
+
+		// 2. Direct cleat proximity fallback on this vessel
+		boolean holdsLead = player.getMainHandItem().is(Items.LEAD) || player.getOffhandItem().is(Items.LEAD);
+		boolean holdsLine = isPlayerHoldingAnyCleat(player);
+		BlockPos pendingFence = getPendingFenceMooring(player.getUUID());
+
+		Vec3 clickWorld = location != null ? this.position().add(location) : player.getEyePosition();
+		int bestCleat = -1;
+		double bestDistSq = Double.MAX_VALUE;
+
+		for (int i = 0; i < CLEAT_COUNT; i++) {
+			Vec3 cleatWorld = this.getCleatWorldPos(i);
+			double distSq = cleatWorld.distanceToSqr(clickWorld);
+			if (distSq < bestDistSq) {
+				bestDistSq = distSq;
+				bestCleat = i;
+			}
+		}
+
+		if (bestCleat >= 0 && bestDistSq <= 25.0) { // Within 5.0 blocks of a cleat
+			if (holdsLead || holdsLine || pendingFence != null || this.isCleatAttached(bestCleat)) {
+				if (interactCleat(player, this, bestCleat)) {
+					return InteractionResult.SUCCESS;
+				}
+			}
 		}
 
 		return InteractionResult.PASS;
@@ -1142,21 +1187,31 @@ public class WresslaEntity extends Entity implements Leashable {
 	// Local coordinates:
 	//   local.x: starboard (+), port (-)
 	//   local.y: height above water
-	//   local.z: bow / forward (-), stern / aft (+)
+	//   local.z: bow / forward (+), stern / aft (-)
 	// =========================================================================
 	public Vec3 localToWorld(Vec3 local) {
-		double radians = Math.toRadians(this.getYRot());
-		double worldX = Math.cos(radians) * local.x + Math.sin(radians) * local.z;
-		double worldZ = Math.sin(radians) * local.x - Math.cos(radians) * local.z;
-		return new Vec3(this.getX() + worldX, this.getY() + local.y, this.getZ() + worldZ);
+		float yawRad = this.getYRot() * Mth.DEG_TO_RAD;
+		double fwdX = -Mth.sin(yawRad);
+		double fwdZ = Mth.cos(yawRad);
+		double rightX = Mth.cos(yawRad);
+		double rightZ = Mth.sin(yawRad);
+		double worldX = this.getX() + rightX * local.x + fwdX * local.z;
+		double worldY = this.getY() + local.y;
+		double worldZ = this.getZ() + rightZ * local.x + fwdZ * local.z;
+		return new Vec3(worldX, worldY, worldZ);
 	}
 
 	public Vec3 worldToLocal(Vec3 world) {
 		Vec3 diff = world.subtract(this.position());
-		double radians = Math.toRadians(this.getYRot());
-		double localX = diff.x * Math.cos(radians) + diff.z * Math.sin(radians);
-		double localZ = diff.x * Math.sin(radians) - diff.z * Math.cos(radians);
-		return new Vec3(localX, diff.y, localZ);
+		float yawRad = this.getYRot() * Mth.DEG_TO_RAD;
+		double fwdX = -Mth.sin(yawRad);
+		double fwdZ = Mth.cos(yawRad);
+		double rightX = Mth.cos(yawRad);
+		double rightZ = Mth.sin(yawRad);
+		double localX = diff.x * rightX + diff.z * rightZ;
+		double localY = diff.y;
+		double localZ = diff.x * fwdX + diff.z * fwdZ;
+		return new Vec3(localX, localY, localZ);
 	}
 
 	// =========================================================================

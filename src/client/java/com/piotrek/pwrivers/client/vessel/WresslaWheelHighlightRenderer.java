@@ -97,9 +97,11 @@ public final class WresslaWheelHighlightRenderer {
 	private static void drawLocalBox(PoseStack.Pose pose, VertexConsumer consumer, WresslaEntity boat, AABB box, float partialTick, Vec3 camPos) {
 		float boatYaw = Mth.rotLerp(partialTick, boat.yRotO, boat.getYRot());
 		Vec3 boatPos = boat.getPosition(partialTick);
-		double radians = Math.toRadians(boatYaw);
-		double cos = Math.cos(radians);
-		double sin = Math.sin(radians);
+		float yawRad = boatYaw * Mth.DEG_TO_RAD;
+		double fwdX = -Mth.sin(yawRad);
+		double fwdZ = Mth.cos(yawRad);
+		double rightX = Mth.cos(yawRad);
+		double rightZ = Mth.sin(yawRad);
 
 		Vec3[] localCorners = new Vec3[]{
 			new Vec3(box.minX, box.minY, box.minZ),
@@ -117,9 +119,9 @@ public final class WresslaWheelHighlightRenderer {
 		float[] rz = new float[8];
 
 		for (int k = 0; k < 8; k++) {
-			double wx = boatPos.x + cos * localCorners[k].x + sin * localCorners[k].z;
+			double wx = boatPos.x + rightX * localCorners[k].x + fwdX * localCorners[k].z;
 			double wy = boatPos.y + localCorners[k].y;
-			double wz = boatPos.z + sin * localCorners[k].x - cos * localCorners[k].z;
+			double wz = boatPos.z + rightZ * localCorners[k].x + fwdZ * localCorners[k].z;
 			rx[k] = (float) (wx - camPos.x);
 			ry[k] = (float) (wy - camPos.y);
 			rz[k] = (float) (wz - camPos.z);

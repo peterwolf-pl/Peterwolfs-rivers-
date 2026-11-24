@@ -26,13 +26,13 @@ public class WresslaLayoutTest {
 	@Test
 	void testWheelInteractionBox() {
 		assertNotNull(WresslaLayout.WHEEL_BOX);
-		assertTrue(WresslaLayout.WHEEL_BOX.contains(0.0, 1.5, -0.60));
+		assertTrue(WresslaLayout.WHEEL_BOX.contains(0.0, 1.5, 0.30));
 	}
 
 	@Test
 	void testOutboardMotorPosition() {
-		assertEquals(5.00, WresslaLayout.MOTOR_MOUNT_POS.z, 1.0E-6);
-		assertEquals(4.85, WresslaLayout.PROPELLER_LOCAL_POS.z, 1.0E-6);
+		assertEquals(-5.00, WresslaLayout.MOTOR_MOUNT_POS.z, 1.0E-6);
+		assertEquals(-4.85, WresslaLayout.PROPELLER_LOCAL_POS.z, 1.0E-6);
 		assertTrue(WresslaLayout.PROPELLER_LOCAL_POS.y < 0.0, "Propeller must be beneath waterline for thrust and bubbles");
 	}
 }

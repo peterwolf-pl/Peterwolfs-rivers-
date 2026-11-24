@@ -27,11 +27,11 @@ public class WresslaMooringAndDriftTest {
 		assertTrue(sternPort.x < 0.0, "Stern port must be on port side (negative X)");
 		assertTrue(sternStarboard.x > 0.0, "Stern starboard must be on starboard side (positive X)");
 
-		// Bow should be forward (negative Z), Stern aft (positive Z)
-		assertTrue(bowPort.z < 0.0, "Bow port must be forward (negative Z)");
-		assertTrue(bowStarboard.z < 0.0, "Bow starboard must be forward (negative Z)");
-		assertTrue(sternPort.z > 0.0, "Stern port must be aft (positive Z)");
-		assertTrue(sternStarboard.z > 0.0, "Stern starboard must be aft (positive Z)");
+		// Bow should be forward (positive Z), Stern aft (negative Z)
+		assertTrue(bowPort.z > 0.0, "Bow port must be forward (positive Z)");
+		assertTrue(bowStarboard.z > 0.0, "Bow starboard must be forward (positive Z)");
+		assertTrue(sternPort.z < 0.0, "Stern port must be aft (negative Z)");
+		assertTrue(sternStarboard.z < 0.0, "Stern starboard must be aft (negative Z)");
 
 		// Symmetry
 		assertEquals(Math.abs(bowPort.x), Math.abs(bowStarboard.x), 1.0E-6, "Bow cleats must be transverse-symmetric");
@@ -63,13 +63,13 @@ public class WresslaMooringAndDriftTest {
 
 	@Test
 	void testMooringCleatYawError() {
-		// Boat at origin with 0 yaw (facing North, -Z)
-		// Bow port cleat is at (-1.5, -4.5)
-		// If dock post is directly forward at (0.0, -10.0), bow cleat swings toward center
+		// Boat at origin with 0 yaw (facing South, +Z)
+		// Bow port cleat is at (-1.5, 4.5)
+		// If dock post is directly forward at (0.0, 10.0), bow cleat swings toward center
 		float error = MooringConstraint.cleatYawError(
 			0.0F, 0.0, 0.0,
-			-1.5, -4.5,
-			0.0, -10.0
+			-1.5, 4.5,
+			0.0, 10.0
 		);
 
 		// Non-zero error turning towards post
@@ -113,19 +113,19 @@ public class WresslaMooringAndDriftTest {
 	@Test
 	void testApparentWindFlagAngle() {
 		// Boat heading South (yaw = 0 deg).
-		// Wind blowing from North to South (trueWind = (0, 0, 5)).
-		// Downwind vector is (0, 0, 5) -> atan2(-0, 5) = 0 deg.
-		// Flag relative angle to boat yaw 0: 0 deg.
-		// Local flag orientation: 90 + 0 = 90 deg (pointing straight to stern).
-		Vec3 trueWind = new Vec3(0.0, 0.0, 5.0);
+		// Wind blowing from South to North (headwind: trueWind = (0, 0, -5)).
+		// Downwind vector is (0, 0, -5) -> atan2(0, -5) = 180 deg.
+		// Relative downwind angle to boat yaw 0: 180 deg (blowing straight toward stern).
+		// Model flag orientation: 90 - 180 = -90 deg (pointing straight toward stern in model space).
+		Vec3 trueWind = new Vec3(0.0, 0.0, -5.0);
 		Vec3 boatVel = Vec3.ZERO;
 		Vec3 apparent = trueWind.subtract(boatVel);
 
 		float downwindDeg = (float) Math.toDegrees(Math.atan2(-apparent.x, apparent.z));
-		assertEquals(0.0F, downwindDeg, 0.01F, "Downwind vector should be 0 deg");
+		assertEquals(180.0F, Math.abs(downwindDeg), 0.01F, "Downwind vector should be 180 deg");
 
 		float relativeDeg = Mth.wrapDegrees(downwindDeg - 0.0F);
-		float flagYaw = (float) Math.toRadians(90.0F + relativeDeg);
-		assertEquals((float) Math.toRadians(90.0F), flagYaw, 0.01F, "Flag should point towards stern");
+		float flagYaw = (float) Math.toRadians(Mth.wrapDegrees(90.0F - relativeDeg));
+		assertEquals((float) Math.toRadians(-90.0F), flagYaw, 0.01F, "Flag should point towards stern (-90 deg)");
 	}
 }
